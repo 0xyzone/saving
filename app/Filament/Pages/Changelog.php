@@ -3,9 +3,11 @@
 namespace App\Filament\Pages;
 
 use App\Models\Changelog as ChangelogModel;
+use App\Services\ChangelogService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -25,12 +27,29 @@ class Changelog extends Page
 
     protected static ?int $navigationSort = 100;
 
-    protected static ?string $title = 'Changelog & Release Notes';
+    protected static ?string $title = 'System Changelog';
+
+    protected static ?string $slug = 'changelog';
+
+    public function getHeading(): string
+    {
+        return 'System Changelog & Release Notes';
+    }
+
+    public function getSubheading(): ?string
+    {
+        return 'Track feature additions, system milestones, and architectural enhancements across the platform.';
+    }
+
+    public function getCurrentVersion(): string
+    {
+        return ChangelogService::getCurrentVersion();
+    }
 
     /**
      * @return Collection<int, ChangelogModel>
      */
-    public function getChangelogsProperty(): Collection
+    public function getReleasesProperty(): Collection
     {
         return ChangelogModel::query()
             ->orderByDesc('released_at')
@@ -47,20 +66,32 @@ class Changelog extends Page
                 ->color('primary')
                 ->slideOver()
                 ->form([
+                    Select::make('type')
+                        ->label('Update Type (SemVer)')
+                        ->options([
+                            'major' => 'Major Release (Architectural / Breaking)',
+                            'minor' => 'Minor Release (New Features & Enhancements)',
+                            'macro' => 'Macro Update (Patch / Bug Fixes / Tweaks)',
+                        ])
+                        ->default('macro')
+                        ->live()
+                        ->afterStateUpdated(function ($state, callable $set) {
+                            $next = ChangelogService::getNextVersion($state ?? 'macro');
+                            $set('version', $next);
+                        })
+                        ->required(),
+
                     TextInput::make('version')
                         ->label('Version Tag')
-                        ->placeholder('e.g. v1.1.0')
+                        ->default(fn () => ChangelogService::getNextVersion('macro'))
+                        ->placeholder('e.g. 1.0.1')
                         ->required()
                         ->unique(ChangelogModel::class, 'version'),
 
-                    Select::make('type')
-                        ->label('Release Type')
-                        ->options([
-                            'major' => 'Major Release (Architectural / Breaking)',
-                            'minor' => 'Minor Release (New Features)',
-                            'macro' => 'Macro Update (Patch / Fixes / Tweaks)',
-                        ])
-                        ->default('macro')
+                    TextInput::make('badge')
+                        ->label('Category Badge')
+                        ->placeholder('e.g. Feature Milestone, Security Patch, UI Enhancement')
+                        ->default('Enhancement')
                         ->required(),
 
                     DatePicker::make('released_at')
@@ -69,22 +100,42 @@ class Changelog extends Page
                         ->required(),
 
                     TextInput::make('title')
-                        ->label('Release Summary Title')
+                        ->label('Release Headline / Summary')
+                        ->placeholder('e.g. Modern Two-Step Login and Mobile Screen Optimizations')
                         ->required()
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->columnSpanFull(),
 
                     Textarea::make('description')
-                        ->label('Release Notes / Highlights')
-                        ->rows(5)
-                        ->placeholder('Write bullet points or markdown details...'),
+                        ->label('Overview / Summary Paragraph')
+                        ->rows(3)
+                        ->columnSpanFull(),
+
+                    Repeater::make('highlights')
+                        ->label('Key Bullet Highlights')
+                        ->simple(
+                            TextInput::make('highlight')
+                                ->placeholder('e.g. Removed spin buttons on all numeric input fields')
+                                ->required()
+                        )
+                        ->defaultItems(1)
+                        ->collapsible()
+                        ->columnSpanFull(),
                 ])
                 ->action(function (array $data): void {
+                    // Extract strings from simple repeater
+                    if (isset($data['highlights']) && is_array($data['highlights'])) {
+                        $data['highlights'] = array_values(array_filter(array_map(function ($item) {
+                            return is_array($item) ? ($item['highlight'] ?? reset($item)) : $item;
+                        }, $data['highlights'])));
+                    }
+
                     ChangelogModel::create($data);
 
                     Notification::make()
                         ->success()
-                        ->title('Release added')
-                        ->body("Release {$data['version']} recorded successfully.")
+                        ->title('Release Logged Successfully')
+                        ->body("Release v{$data['version']} is now live in the system changelog.")
                         ->send();
                 }),
         ];

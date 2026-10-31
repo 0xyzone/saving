@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ChangelogService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -12,8 +13,10 @@ class Changelog extends Model
     protected $fillable = [
         'version',
         'type',
+        'badge',
         'title',
         'description',
+        'highlights',
         'released_at',
     ];
 
@@ -24,17 +27,15 @@ class Changelog extends Model
     {
         return [
             'released_at' => 'date',
+            'highlights' => 'array',
         ];
     }
 
     /**
-     * Get the latest application version.
+     * Get the current application version.
      */
     public static function currentVersion(): string
     {
-        return static::query()
-            ->latest('released_at')
-            ->latest('id')
-            ->value('version') ?? 'v1.0.0';
+        return ChangelogService::getCurrentVersion();
     }
 }
