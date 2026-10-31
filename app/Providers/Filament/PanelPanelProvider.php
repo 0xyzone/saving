@@ -34,7 +34,12 @@ class PanelPanelProvider extends PanelProvider
             ->login(Login::class)
             ->colors([
                 'primary' => Color::Amber,
+                'gray' => Color::Slate,
             ])
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => view('filament.custom-styles')->render(),
+            )
             ->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
                 fn (): string => view('filament.version-badge')->render(),

@@ -2,3 +2,4 @@
     <span>App Version: </span>
     <span class="font-semibold text-primary-600 dark:text-primary-400">{{ \App\Models\Changelog::currentVersion() }}</span>
 </div>
+

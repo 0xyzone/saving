@@ -21,12 +21,23 @@ Every time any task is completed, the agent must:
   - **Major**: Breaking architectural changes or substantial overhauls.
   - **Minor**: Significant new features and functionality additions.
   - **Macro (Patch)**: Small updates, enhancements, fixes, or tweaks.
-- New releases/versions must be registered in the **Changelog** model/resource (`App\Models\Changelog`).
+- New releases/versions must be registered in the **Changelog** model (`App\Models\Changelog`).
+- Releases are displayed on a custom dedicated page [`/changelog`](file:///d:/wamp64/www/saving/app/Filament/Pages/Changelog.php) featuring interactive cards, badges, and release creation in a slideover modal.
 - Current version is dynamically displayed:
-  - Inside the Filament panel (Sidebar footer linking to `/changelogs`).
+  - Inside the Filament panel (Sidebar footer linking to `/changelog`).
   - At the bottom of the Filament login screen (`resources/views/filament/version-badge.blade.php`).
 
-## 3. Core Architecture Conventions
+## 3. UI/UX, Modal & Mobile Rules (Mandatory)
+- **Slideovers Globally**:
+  - All create, edit, and view actions across Filament tables, resources, and header actions must open as **slideovers** (`slideOver()`). Configured centrally in `AppServiceProvider`.
+- **Mobile Screen Optimization**:
+  - All resources, tables, and schemas must be clean and highly optimized for mobile devices.
+  - Tables should use responsive columns, appropriate hidden defaults on small viewports, horizontal touch scrolling, and max heights on modal windows.
+- **Number Input Fields**:
+  - Numeric input fields must not display up/down spin buttons/arrows across all browsers (`appearance: textfield`).
+  - Mouse wheel scrolling over number fields must not change the number or input value (`onwheel: this.blur()`).
+
+## 4. Core Architecture Conventions
 - **Authentication**: Users authenticate using `primary_contact_number` (not email).
 - **Two-Step Login**: Step 1 validates that the primary contact number exists in DB; Step 2 presents the password field.
 - **Payment Options**: Stored in relational table `user_payment_options` associated with `User`.
