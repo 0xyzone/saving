@@ -145,4 +145,27 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Rerun a test after each change to it.
 - Run `vendor/bin/phpunit` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
 
+
+=== completion rules ===
+
+# Post-Task Actions (MUST EXECUTE AFTER EVERY TASK)
+
+1. **Git Commit & Push**:
+   - Stage, commit with a descriptive message, and push directly to `main`:
+     ```bash
+     git add .
+     git commit -m "<message>"
+     git push origin main
+     ```
+2. **Ntfy Notification**:
+   - Send completion ping to topic `saving-tasks`:
+     ```bash
+     curl.exe -s -d "Task completed: <summary>" https://ntfy.sh/saving-tasks
+     ```
+
+3. **Changelog & Versioning**:
+   - When introducing features or fixes, log them in the `Changelog` table specifying the version and update type (`major`, `minor`, `macro`).
+   - The current version is rendered in panel's sidebar footer and on the login page.
+   - Refer to `MEMORY.md` for project memory.
+
 </laravel-boost-guidelines>

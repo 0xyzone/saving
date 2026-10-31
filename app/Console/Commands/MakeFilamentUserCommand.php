@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use Filament\Commands\MakeUserCommand as BaseMakeUserCommand;
-use Filament\Support\Commands\Exceptions\FailureCommandOutput;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
@@ -105,7 +104,7 @@ class MakeFilamentUserCommand extends BaseMakeUserCommand
         return $data;
     }
 
-    protected function sendSuccessMessage(Model & Authenticatable $user): void
+    protected function sendSuccessMessage(Model&Authenticatable $user): void
     {
         $loginUrl = $this->panel->getLoginUrl();
         $identifier = $user->getAttribute('primary_contact_number') ?? $user->getAttribute('name') ?? 'You';

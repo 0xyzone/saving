@@ -73,4 +73,3 @@ class EditContactAndAddress extends BaseProfileForm
             ->send();
     }
 }
-

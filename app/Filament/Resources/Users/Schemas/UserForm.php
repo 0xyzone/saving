@@ -8,7 +8,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -110,7 +109,7 @@ class UserForm
                             ])
                             ->columns(2)
                             ->collapsible()
-                            ->itemLabel(fn (array $state): ?string => ($state['provider_name'] ?? $state['type'] ?? 'Payment Option') . ' - ' . ($state['account_number'] ?? ''))
+                            ->itemLabel(fn (array $state): ?string => ($state['provider_name'] ?? $state['type'] ?? 'Payment Option').' - '.($state['account_number'] ?? ''))
                             ->defaultItems(0)
                             ->columnSpanFull(),
                     ]),
