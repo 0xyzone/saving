@@ -32,6 +32,8 @@ class PanelPanelProvider extends PanelProvider
             ->id('panel')
             ->path('/')
             ->login(Login::class)
+            ->brandName('Saving Portal')
+            ->brandLogo(fn () => view('filament.brand'))
             ->colors([
                 'primary' => Color::Amber,
                 'gray' => Color::Slate,

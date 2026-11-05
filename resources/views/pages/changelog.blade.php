@@ -42,16 +42,21 @@
     <!-- Navigation Bar -->
     <header class="sticky top-0 z-50 backdrop-blur-md bg-slate-950/80 border-b border-slate-800/80">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="/" class="flex items-center gap-2.5 font-bold text-lg text-white hover:opacity-90 transition">
+            <a href="/" class="flex items-center gap-2.5 font-bold text-lg text-white hover:opacity-90 transition group">
                 <span class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center text-white shadow-md shadow-amber-500/20 font-mono text-sm">
                     S
                 </span>
                 <span>Saving Portal</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/25">
+                    <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    v{{ $currentVersion }}
+                </span>
             </a>
 
             <div class="flex items-center gap-4">
-                <a href="/login" class="text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition">
-                    Sign In &rarr;
+                <a href="/" class="text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition flex items-center gap-1.5">
+                    <span>Back to Portal</span>
+                    <span>&rarr;</span>
                 </a>
             </div>
         </div>
@@ -75,7 +80,7 @@
                     </h1>
 
                     <p class="text-sm sm:text-base text-slate-300 max-w-2xl leading-relaxed">
-                        Track feature milestones, authentication evolutions, mobile screen optimizations, and platform updates.
+                        Track feature milestones, authentication evolutions, mobile screen optimizations, and platform updates documented in <code class="px-1.5 py-0.5 rounded-md text-xs font-mono bg-slate-800 text-amber-300 border border-slate-700">CHANGELOG.md</code>.
                     </p>
                 </div>
 
@@ -108,19 +113,22 @@
                         <!-- Header Row -->
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
                             <div class="flex flex-wrap items-center gap-2.5">
-                                <span class="px-3 py-1 rounded-lg font-mono text-sm font-bold {{ $loop->first ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm' : 'bg-slate-800 text-slate-200' }}">
-                                    v{{ ltrim($release->version, 'vV') }}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-xs sm:text-sm font-bold {{ $loop->first ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-sm' : 'bg-slate-800/80 text-slate-200 border border-slate-700' }}">
+                                    @if ($loop->first)
+                                        <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                                    @endif
+                                    v{{ ltrim($release['version'], 'vV') }}
                                 </span>
 
                                 @php
-                                    $badgeStyle = match($release->type) {
+                                    $badgeStyle = match($release['type']) {
                                         'major' => 'bg-red-950/60 text-red-300 border-red-800/50',
                                         'minor' => 'bg-amber-950/60 text-amber-300 border-amber-800/50',
                                         default => 'bg-emerald-950/60 text-emerald-300 border-emerald-800/50',
                                     };
                                 @endphp
                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold border {{ $badgeStyle }}">
-                                    {{ $release->badge ?? ucfirst($release->type) }}
+                                    {{ $release['badge'] }}
                                 </span>
 
                                 @if ($loop->first)
@@ -131,50 +139,86 @@
                                 @endif
                             </div>
 
-                            <div class="flex items-center gap-1.5 text-xs text-slate-400">
-                                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                <time datetime="{{ $release->released_at?->toDateString() }}">
-                                    {{ $release->released_at ? $release->released_at->format('F d, Y') : $release->created_at->format('F d, Y') }}
-                                </time>
-                            </div>
+                            @if (!empty($release['date']))
+                                <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    <time datetime="{{ $release['date'] }}">
+                                        {{ date('F d, Y', strtotime($release['date'])) }}
+                                    </time>
+                                </div>
+                            @endif
                         </div>
 
-                        <!-- Title & Description Body -->
-                        <div class="mt-4 space-y-3">
-                            <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight">
-                                {{ $release->title }}
-                            </h2>
-
-                            @if (!empty($release->description))
-                                <p class="text-sm text-slate-300 leading-relaxed bg-slate-950/60 border-l-4 border-amber-500 px-4 py-3 rounded-r-xl">
-                                    {{ $release->description }}
-                                </p>
-                            @endif
-
-                            @if (!empty($release->highlights) && is_array($release->highlights))
-                                <ul class="mt-4 space-y-2 pl-1">
-                                    @foreach ($release->highlights as $highlight)
-                                        <li class="flex items-start gap-3 text-xs sm:text-sm text-slate-300">
-                                            <span class="h-1.5 w-1.5 rounded-full bg-amber-400 mt-2 shrink-0"></span>
-                                            <span class="leading-relaxed">{!! preg_replace('/`([^`]+)`/', '<code class="px-1.5 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 text-amber-300 border border-slate-700">$1</code>', e($highlight)) !!}</span>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            @endif
+                        <!-- Rendered Markdown Body -->
+                        <div class="mt-4 changelog-body space-y-3 text-sm text-slate-300 leading-relaxed">
+                            {!! $release['html'] !!}
                         </div>
                     </div>
                 </article>
             @empty
                 <div class="rounded-2xl border border-dashed border-slate-800 p-12 text-center">
-                    <p class="text-sm font-medium text-slate-400">No releases logged yet.</p>
+                    <p class="text-sm font-medium text-slate-400">No releases logged in CHANGELOG.md yet.</p>
                 </div>
             @endforelse
         </div>
     </main>
 
     <footer class="mt-20 border-t border-slate-800/80 py-8 text-center text-xs text-slate-500">
-        <p>Saving Portal &bull; Release Version {{ $currentVersion }}</p>
+        <p>Saving Portal &bull; Release Version v{{ $currentVersion }}</p>
     </footer>
+
+    <style>
+        .changelog-body h3 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #fbbf24;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .changelog-body h3:first-child {
+            margin-top: 0;
+        }
+        .changelog-body ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .changelog-body ul li {
+            position: relative;
+            padding-left: 1.25rem;
+            font-size: 0.875rem;
+            color: #cbd5e1;
+        }
+        .changelog-body ul li::before {
+            content: "";
+            position: absolute;
+            left: 0.25rem;
+            top: 0.55rem;
+            width: 0.375rem;
+            height: 0.375rem;
+            border-radius: 9999px;
+            background-color: #f59e0b;
+        }
+        .changelog-body code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.375rem;
+            background-color: #1e293b;
+            color: #fde68a;
+            border: 1px solid #334155;
+        }
+        .changelog-body p {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
 </body>
 </html>
-

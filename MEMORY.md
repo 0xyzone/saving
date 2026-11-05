@@ -21,11 +21,14 @@ Every time any task is completed, the agent must:
   - **Major**: Breaking architectural changes or substantial overhauls.
   - **Minor**: Significant new features and functionality additions.
   - **Macro (Patch)**: Small updates, enhancements, fixes, or tweaks.
-- New releases/versions must be registered in the **Changelog** model (`App\Models\Changelog`) using `App\Services\ChangelogService`.
-- Releases are displayed on a custom dedicated page [`/changelog`](file:///d:/wamp64/www/saving/app/Filament/Pages/Changelog.php) featuring a dark gradient hero card, interactive release timeline, category badges, bullet highlights, and release creation in a slideover modal (matching `waldo` design language).
-- Current version is dynamically displayed:
-  - Inside the Filament panel (Sidebar footer linking to `/changelog`).
+- Changelogs are maintained solely in `CHANGELOG.md` at the project root using standard Keep a Changelog / SemVer formatting (no database storage).
+- `App\Services\ChangelogService` parses `CHANGELOG.md` directly to retrieve releases, descriptions, highlights, and the active version.
+- Releases are displayed on the dedicated public page [`/changelog`](file:///Applications/MAMP/htdocs/saving/resources/views/pages/changelog.blade.php) featuring a dark gradient hero card, interactive release timeline, category badges, and parsed markdown notes.
+- Current version is dynamically displayed in a badge UI (`vX.Y.Z` with glowing indicator):
+  - In the panel brand header directly beside the app name/logo (`resources/views/filament/brand.blade.php`).
+  - In the sidebar footer linking to `/changelog` (`resources/views/filament/sidebar-version.blade.php`).
   - At the bottom of the Filament login screen (`resources/views/filament/version-badge.blade.php`).
+  - In the top navigation bar of the changelog page.
 
 ## 3. UI/UX, Modal & Mobile Rules (Mandatory - Waldo Design Reference)
 - **Card-Based Grid Layouts for Resources**:
