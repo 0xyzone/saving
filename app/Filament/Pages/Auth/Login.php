@@ -12,6 +12,7 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Auth\EloquentUserProvider;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Validation\ValidationException;
 use SensitiveParameter;
 
@@ -19,11 +20,25 @@ class Login extends BaseLogin
 {
     public bool $isNumberVerified = false;
 
+    public function getHeading(): string|Htmlable
+    {
+        return $this->isNumberVerified ? 'Enter Password' : 'Sign In';
+    }
+
+    public function getSubheading(): string|Htmlable|null
+    {
+        return $this->isNumberVerified
+            ? 'Enter your account password to complete verification'
+            : 'Enter your registered primary contact number to access your account';
+    }
+
     protected function getEmailFormComponent(): Component
     {
         return TextInput::make('primary_contact_number')
             ->label('Primary Contact Number')
+            ->placeholder('e.g. 9801234567')
             ->tel()
+            ->prefixIcon(Heroicon::Phone)
             ->required()
             ->autocomplete()
             ->autofocus()
@@ -45,6 +60,8 @@ class Login extends BaseLogin
     protected function getPasswordFormComponent(): Component
     {
         return parent::getPasswordFormComponent()
+            ->placeholder('••••••••••••')
+            ->prefixIcon(Heroicon::LockClosed)
             ->visible(fn (): bool => $this->isNumberVerified)
             ->autofocus(fn (): bool => $this->isNumberVerified);
     }
@@ -85,7 +102,16 @@ class Login extends BaseLogin
     {
         return Action::make('checkNumber')
             ->label('Continue')
+            ->icon(Heroicon::ArrowRight)
+            ->iconPosition('after')
             ->action('verifyContactNumber');
+    }
+
+    protected function getAuthenticateFormAction(): Action
+    {
+        return parent::getAuthenticateFormAction()
+            ->icon(Heroicon::ArrowRightEndOnRectangle)
+            ->iconPosition('after');
     }
 
     protected function getUserModelClass(): string

@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - App brand version pill badge (`vX.Y.Z`) with glowing pulse indicator positioned beside the app logo and title across the Filament panel and public pages.
 - Direct file-based markdown changelog parser in `ChangelogService` using `Str::markdown()`.
+- Premium glassmorphic login screen styling with radial backdrop glow, refined typography, and input prefix icons.
 
 ### Changed
 - Switched changelog data architecture to solely read from `CHANGELOG.md`, completely eliminating database storage and operations.
 - Upgraded version indicators across sidebar footer and login screen to match the unified badge UI.
+- Enhanced login form UX with dynamic step-based headings, helpful subheadings, and icon-enhanced action buttons.
 
 ### Removed
 - Dropped `changelogs` database table and removed `Changelog` Eloquent model.
