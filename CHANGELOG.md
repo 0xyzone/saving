@@ -5,6 +5,19 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-11-05
+
+### Added
+- App brand version pill badge (`vX.Y.Z`) with glowing pulse indicator positioned beside the app logo and title across the Filament panel and public pages.
+- Direct file-based markdown changelog parser in `ChangelogService` using `Str::markdown()`.
+
+### Changed
+- Switched changelog data architecture to solely read from `CHANGELOG.md`, completely eliminating database storage and operations.
+- Upgraded version indicators across sidebar footer and login screen to match the unified badge UI.
+
+### Removed
+- Dropped `changelogs` database table and removed `Changelog` Eloquent model.
+
 ## [1.0.5] - 2026-10-31
 
 ### Added
@@ -57,3 +70,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of Saving Portal.
 - Filament Admin Panel foundation with custom branding, authentication scaffolding, and role permissions.
 - Database architecture for user accounts, sessions, and system jobs.
+

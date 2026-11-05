@@ -12,3 +12,4 @@
         <span>v{{ \App\Services\ChangelogService::getCurrentVersion() }}</span>
     </a>
 </div>
+
