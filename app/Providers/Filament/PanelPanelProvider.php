@@ -31,6 +31,7 @@ class PanelPanelProvider extends PanelProvider
             ->default()
             ->id('panel')
             ->path('/')
+            ->viteTheme('resources/css/filament/panel/theme.css')
             ->login(Login::class)
             ->brandName('Saving Portal')
             ->brandLogo(fn () => view('filament.brand'))
