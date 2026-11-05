@@ -1,7 +1,4 @@
 <div class="flex items-center gap-2.5">
-    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-600 text-white font-bold text-sm shadow-md shadow-amber-500/20 font-mono">
-        S
-    </div>
     <span class="text-base font-bold tracking-tight text-gray-950 dark:text-white">
         Saving Portal
     </span>
