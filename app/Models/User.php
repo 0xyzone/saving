@@ -81,4 +81,9 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     {
         return $this->hasMany(UserPaymentOption::class);
     }
+
+    public function canImpersonate()
+    {
+        return $this->is_superadmin;
+    }
 }

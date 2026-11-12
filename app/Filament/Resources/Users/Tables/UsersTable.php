@@ -110,7 +110,8 @@ class UsersTable
             ->recordActions([
                 ViewAction::make()->slideOver(),
                 EditAction::make()->slideOver(),
-                Impersonate::make(),
+                Impersonate::make()
+                ->redirectTo(route('filament.panel.pages.dashboard')),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
