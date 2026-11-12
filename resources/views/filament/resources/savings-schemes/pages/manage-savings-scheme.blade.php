@@ -90,21 +90,51 @@
                                             <span class="text-slate-900 dark:text-white">{{ $period->winnerUser->name }}</span>
                                             <span class="text-xs text-slate-400">(Seat #{{ $period->winningSeat?->seat_number }})</span>
                                         </div>
+                                    @elseif ($period->period_number === 1)
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-amber-500">🏆</span>
+                                            <span class="text-slate-900 dark:text-white">{{ $record->organizer?->name ?? 'Organizer' }}</span>
+                                            <span class="text-xs text-amber-600 dark:text-amber-400 font-medium">(Seat #1 · Reserved)</span>
+                                        </div>
                                     @else
                                         <span class="text-slate-400 italic">Not drawn yet</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono">
-                                    Rs. {{ number_format((float) $period->gross_pool_amount, 2) }}
+                                    @if ($period->status === 'completed')
+                                        Rs. {{ number_format((float) $period->gross_pool_amount, 2) }}
+                                    @elseif ($period->period_number === 1)
+                                        <span class="text-slate-500">Rs. {{ number_format((float) ($record->total_seats * $record->installment_amount), 2) }}</span>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono text-amber-600 dark:text-amber-400">
-                                    -Rs. {{ number_format((float) $period->winner_dues_deducted, 2) }}
+                                    @if ($period->status === 'completed')
+                                        -Rs. {{ number_format((float) $period->winner_dues_deducted, 2) }}
+                                    @elseif ($period->period_number === 1)
+                                        <span>-Rs. {{ number_format((float) $record->installment_amount, 2) }}</span>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono text-rose-500">
-                                    -Rs. {{ number_format((float) $period->khaja_kharcha_deducted, 2) }}
+                                    @if ($period->status === 'completed')
+                                        -Rs. {{ number_format((float) $period->khaja_kharcha_deducted, 2) }}
+                                    @elseif ($period->period_number === 1)
+                                        <span class="text-slate-400">Rs. 0.00</span>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                    Rs. {{ number_format((float) $period->net_payout_amount, 2) }}
+                                    @if ($period->status === 'completed')
+                                        Rs. {{ number_format((float) $period->net_payout_amount, 2) }}
+                                    @elseif ($period->period_number === 1)
+                                        <span class="text-emerald-600/80 dark:text-emerald-400/80">Rs. {{ number_format((float) (($record->total_seats - 1) * $record->installment_amount), 2) }}</span>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     @if ($period->status === 'completed')
