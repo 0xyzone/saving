@@ -39,6 +39,15 @@ class SavingsScheme extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (SavingsScheme $scheme): void {
+            if (empty($scheme->total_periods) && ! empty($scheme->total_seats)) {
+                $scheme->total_periods = $scheme->total_seats;
+            }
+        });
+    }
+
     public function organizer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'organizer_id');

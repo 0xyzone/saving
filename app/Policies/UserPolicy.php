@@ -68,4 +68,19 @@ class UserPolicy
     {
         return $authUser->can('Reorder:User');
     }
+
+    public function manageRoles(AuthUser $authUser, AuthUser $user): bool
+    {
+        return $authUser->can('ManageRoles:User');
+    }
+
+    public function managePaymentOptions(AuthUser $authUser, AuthUser $user): bool
+    {
+        return $authUser->can('ManagePaymentOptions:User');
+    }
+
+    public function export(AuthUser $authUser): bool
+    {
+        return $authUser->can('Export:User');
+    }
 }

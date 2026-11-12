@@ -13,22 +13,24 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
 
 class ManageSavingsScheme extends Page
 {
+    use InteractsWithRecord;
+
     protected static string $resource = SavingsSchemeResource::class;
 
     protected string $view = 'filament.resources.savings-schemes.pages.manage-savings-scheme';
 
-    public SavingsScheme $record;
-
     public int $selectedPeriodId = 0;
 
-    public function mount(SavingsScheme $record): void
+    public function mount(int|string|SavingsScheme $record): void
     {
-        $this->record = $record->load(['seats.user', 'periods.winningSeat.user', 'periods.winnerUser']);
+        $this->record = $record instanceof SavingsScheme ? $record : $this->resolveRecord($record);
+        $this->record->load(['seats.user', 'periods.winningSeat.user', 'periods.winnerUser']);
 
         // Auto initialize seats and periods if not yet generated
         if ($this->record->seats()->count() === 0) {
@@ -66,6 +68,7 @@ class ManageSavingsScheme extends Page
                 ->label('Declare Period Winner')
                 ->icon('heroicon-m-trophy')
                 ->color('warning')
+                ->visible(fn () => SavingsSchemeResource::canShield('DeclareWinner'))
                 ->modalHeading(fn () => "Declare Winner for Period #{$this->record->current_period}")
                 ->modalDescription('Select the winning seat for this round. Winner seat dues and Khaja Kharcha will be calculated and settled automatically.')
                 ->form([
@@ -127,6 +130,7 @@ class ManageSavingsScheme extends Page
                 ->label('Assign Seat')
                 ->icon('heroicon-m-user-plus')
                 ->color('primary')
+                ->visible(fn () => SavingsSchemeResource::canShield('ManageSeats'))
                 ->form([
                     Select::make('seat_number')
                         ->label('Seat Number')
@@ -161,6 +165,16 @@ class ManageSavingsScheme extends Page
 
     public function markInstallmentPaid(int $installmentId, string $method = 'Cash'): void
     {
+        if (! SavingsSchemeResource::canShield('ManageInstallments')) {
+            Notification::make()
+                ->title('Unauthorized')
+                ->body('You do not have permission to manage installments.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
         $installment = SchemeInstallment::findOrFail($installmentId);
         $installment->update([
             'status' => 'paid',

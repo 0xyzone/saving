@@ -19,7 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Interactive seats roster displaying allocation, organizer status, and past winning periods.
   - Real-time installment collections ledger with per-member payment recording and automatic prize-offset settlement.
 - `SavingsSchemeResource` registered under **Savings Management** navigation group.
-- Complete automated test suite covering all multi-seat, interest accumulation, and winner prize calculation edge cases.
+- Complete Filament Shield & Shield Enhanced permission integration for Savings Schemes:
+  - Custom permissions: `DeclareWinner:SavingsScheme`, `ManageInstallments:SavingsScheme`, `ManageSeats:SavingsScheme`.
+  - Policy enforcement on `SavingsSchemePolicy` and interactive UI guard conditions on action modals and collection actions.
+- Complete automated test suite covering all multi-seat, interest accumulation, winner prize calculation edge cases, and permission enforcement.
 
 ## [1.1.0] - 2026-11-12
 

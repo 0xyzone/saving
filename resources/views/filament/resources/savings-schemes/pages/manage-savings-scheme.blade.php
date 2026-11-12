@@ -230,11 +230,13 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    @if ($inst->status === 'pending')
+                                    @if ($inst->status === 'pending' && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
                                         <button type="button" wire:click="markInstallmentPaid({{ $inst->id }})"
                                             class="px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-500 transition">
                                             Mark Paid
                                         </button>
+                                    @elseif ($inst->status === 'pending')
+                                        <span class="text-xs text-amber-500 italic">Pending</span>
                                     @else
                                         <span class="text-xs text-slate-400">Settled</span>
                                     @endif
@@ -253,3 +255,4 @@
         </div>
     </div>
 </x-filament-panels::page>
+

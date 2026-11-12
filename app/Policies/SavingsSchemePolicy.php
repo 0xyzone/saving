@@ -71,4 +71,19 @@ class SavingsSchemePolicy
     {
         return $authUser->can('Reorder:SavingsScheme');
     }
+
+    public function declareWinner(AuthUser $authUser, SavingsScheme $savingsScheme): bool
+    {
+        return $authUser->can('DeclareWinner:SavingsScheme');
+    }
+
+    public function manageInstallments(AuthUser $authUser, SavingsScheme $savingsScheme): bool
+    {
+        return $authUser->can('ManageInstallments:SavingsScheme');
+    }
+
+    public function manageSeats(AuthUser $authUser, SavingsScheme $savingsScheme): bool
+    {
+        return $authUser->can('ManageSeats:SavingsScheme');
+    }
 }
