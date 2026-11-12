@@ -51,6 +51,8 @@ class RoleAndPermissionSeeder extends Seeder
             'View:EditProfilePage',
             'ViewAny:User',
             'View:User',
+            'ViewAny:SavingsScheme',
+            'View:SavingsScheme',
         ];
         foreach ($panelUserPermissions as $perm) {
             if (Permission::where('name', $perm)->exists()) {

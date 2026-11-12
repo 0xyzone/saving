@@ -63,6 +63,7 @@ class PanelPanelProvider extends PanelProvider
                 FilamentInfoWidget::class,
             ])
             ->navigationGroups([
+                'Savings Management',
                 'Access Management',
                 'Settings',
             ])

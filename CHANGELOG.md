@@ -5,6 +5,22 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-12
+
+### Added
+- Complete Periodical Savings Scheme system (Committee / Dhukuti architecture) with configurable seat and period settings.
+- Financial settlement calculation engine (`SavingsSchemeService`):
+  - Organizer auto-assigned to Seat #1, winning Period 1 in full without Khaja Kharcha deductions.
+  - Automatic deduction of winning member's seat dues from payout (winner pays zero out-of-pocket for winning round).
+  - Fixed Khaja Kharcha deduction starting from Period 2.
+  - Fixed interest accumulation on subsequent installments for all past winning members (excluding Organizer).
+- Dedicated interactive management page (`ManageSavingsScheme`):
+  - Period-by-period progression timeline and winner declaration with instant payout preview.
+  - Interactive seats roster displaying allocation, organizer status, and past winning periods.
+  - Real-time installment collections ledger with per-member payment recording and automatic prize-offset settlement.
+- `SavingsSchemeResource` registered under **Savings Management** navigation group.
+- Complete automated test suite covering all multi-seat, interest accumulation, and winner prize calculation edge cases.
+
 ## [1.1.0] - 2026-11-12
 
 ### Added
