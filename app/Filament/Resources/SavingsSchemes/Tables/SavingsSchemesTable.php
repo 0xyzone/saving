@@ -84,8 +84,10 @@ class SavingsSchemesTable
                                     ->size('xs'),
 
                                 TextColumn::make('start_date')
-                                    ->icon('heroicon-m-clock')
-                                    ->date('M d, Y')
+                                    ->icon('heroicon-m-calendar')
+                                    ->label('Start Date (BS)')
+                                    ->state(fn (SavingsScheme $record) => $record->formatted_start_date_bs)
+                                    ->description(fn (SavingsScheme $record) => $record->start_date ? $record->start_date->format('M d, Y').' AD' : null)
                                     ->color('gray')
                                     ->size('xs'),
                             ])->extraAttributes(['class' => 'justify-between gap-2']),

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\SavingsSchemes\Schemas;
 
 use App\Models\User;
+use App\Services\NepaliDateService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -46,21 +47,54 @@ class SavingsSchemeForm
                             ->default('draft')
                             ->required(),
 
-                        DatePicker::make('start_date')
-                            ->label('First Period Start Date')
-                            ->default(now())
-                            ->required(),
+                        Grid::make(3)
+                            ->schema([
+                                DatePicker::make('start_date')
+                                    ->label('Start Date (Calendar Picker)')
+                                    ->native(false)
+                                    ->default(now())
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $set('start_date_bs', NepaliDateService::toBs($state));
+                                        }
+                                    })
+                                    ->helperText(function (callable $get) {
+                                        $ad = $get('start_date');
+                                        if (! $ad) {
+                                            return null;
+                                        }
 
-                        Select::make('frequency')
-                            ->label('Period Frequency')
-                            ->options([
-                                'monthly' => 'Monthly',
-                                'biweekly' => 'Bi-Weekly',
-                                'weekly' => 'Weekly',
-                                'daily' => 'Daily',
+                                        return '🗓️ Nepali: '.NepaliDateService::formatBs($ad);
+                                    })
+                                    ->required(),
+
+                                TextInput::make('start_date_bs')
+                                    ->label('Nepali Date (Bikram Sambat BS)')
+                                    ->placeholder('e.g. 2083-08-01')
+                                    ->default(fn () => NepaliDateService::currentBsDate())
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state && preg_match('/^\d{4}-\d{2}-\d{2}$/', $state)) {
+                                            $set('start_date', NepaliDateService::toAd($state));
+                                        }
+                                    })
+                                    ->helperText(fn ($state) => $state ? NepaliDateService::formatBs($state) : null)
+                                    ->required()
+                                    ->rules(['regex:/^\d{4}-\d{2}-\d{2}$/']),
+
+                                Select::make('frequency')
+                                    ->label('Period Frequency')
+                                    ->options([
+                                        'monthly' => 'Monthly (Nepali BS Months)',
+                                        'biweekly' => 'Bi-Weekly',
+                                        'weekly' => 'Weekly',
+                                        'daily' => 'Daily',
+                                    ])
+                                    ->default('monthly')
+                                    ->required(),
                             ])
-                            ->default('monthly')
-                            ->required(),
+                            ->columnSpanFull(),
 
                         Textarea::make('description')
                             ->label('Terms & Description')

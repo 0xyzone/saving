@@ -5,6 +5,26 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-12
+
+### Added
+- **Bikram Sambat (Nepali BS) Calendar Integration**:
+  - Integrated `anuzpandey/laravel-nepali-date` package with custom `NepaliDateService` providing bidirectional BS ↔ AD conversion, Nepali month names, and day-capped arithmetic across month transitions.
+  - Interactive graphical calendar popup on scheme creation synchronized with `start_date_bs` and formatted Bikram Sambat helper badges.
+  - Formatted Nepali dates (`formatted_start_date_bs` and `formatted_due_date_bs`) rendered across scheme list tables and round timelines.
+- **Round & Period Reservation System**:
+  - `scheme_period_reservations` architecture allowing members to apply for specific future round payouts with reason justifications.
+  - Organizer approval workflow with pre-selection in winner declaration modals and badge indicators in round cards.
+- **Raffle & Lucky Draw Winner Declaration**:
+  - Integrated Lucky Draw action on the scheme management page for fair, randomized selection among all eligible non-winning seats.
+- **Dedicated Round Details Summary**:
+  - Dedicated View Details slide-over/modal per round displaying gross pool, member dues deductions, Khaja Kharcha fees, net prize, paid sum, and remaining balance due.
+  - Real-time collection metrics and complete member installment ledger with payment verification details.
+- **Multi-Channel Settlement Recording**:
+  - Support for `Cash`, `eSewa`, `Khalti`, `Bank Transfer`, and `Other` payment methods with reference tracking for both winner prize payouts and member installment collections.
+  - Partial payout handling with dynamic remaining balance calculations and dedicated settlement completion actions.
+- Comprehensive automated test suite (`NepaliDateAndPeriodReservationTest`) verifying date conversions, month-end capping, reservation approvals, multi-channel settlements, and interactive Livewire modals.
+
 ## [1.2.0] - 2026-11-12
 
 ### Added

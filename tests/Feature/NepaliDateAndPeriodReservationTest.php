@@ -1,0 +1,273 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Filament\Resources\SavingsSchemes\Pages\ManageSavingsScheme;
+use App\Models\SavingsScheme;
+use App\Models\SchemePeriodReservation;
+use App\Models\User;
+use App\Services\NepaliDateService;
+use App\Services\SavingsSchemeService;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+class NepaliDateAndPeriodReservationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected SavingsSchemeService $schemeService;
+
+    protected NepaliDateService $nepaliDateService;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->schemeService = new SavingsSchemeService;
+        $this->nepaliDateService = new NepaliDateService;
+    }
+
+    public function test_nepali_date_conversions_and_month_additions(): void
+    {
+        $adDate = Carbon::parse('2024-04-13');
+        $bsDate = $this->nepaliDateService->toBs($adDate);
+        $this->assertNotEmpty($bsDate);
+
+        // Converting back to AD returns YYYY-MM-DD string
+        $convertedAd = $this->nepaliDateService->toAd($bsDate);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', $convertedAd);
+
+        // Advance nepali months
+        $nextMonthBs = $this->nepaliDateService->addNepaliMonths('2081-01-15', 1);
+        $this->assertEquals('2081-02-15', $nextMonthBs);
+
+        // Day capping for shorter months
+        $cappedBs = $this->nepaliDateService->addNepaliMonths('2081-01-31', 1);
+        $this->assertNotNull($cappedBs);
+    }
+
+    public function test_scheme_creation_populates_nepali_dates_for_periods(): void
+    {
+        $organizer = User::create([
+            'name' => 'Organizer',
+            'primary_contact_number' => '9801000001',
+            'password' => 'secret',
+        ]);
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Nepali Date Scheme',
+            'organizer_id' => $organizer->id,
+            'total_seats' => 5,
+            'total_periods' => 5,
+            'installment_amount' => 5000,
+            'interest_amount' => 200,
+            'khaja_kharcha' => 500,
+            'frequency' => 'monthly',
+            'start_date' => '2024-04-14',
+            'status' => 'active',
+        ]);
+
+        $this->schemeService->initializeScheme($scheme);
+
+        $scheme->refresh();
+        $this->assertNotEmpty($scheme->start_date_bs);
+
+        $periods = $scheme->periods()->orderBy('period_number')->get();
+        $this->assertCount(5, $periods);
+
+        foreach ($periods as $period) {
+            $this->assertNotEmpty($period->due_date_bs);
+            $this->assertNotEmpty($period->formatted_due_date_bs);
+        }
+    }
+
+    public function test_period_reservation_workflow(): void
+    {
+        $organizer = User::create([
+            'name' => 'Organizer User',
+            'primary_contact_number' => '9801000001',
+            'password' => 'secret',
+        ]);
+
+        $member = User::create([
+            'name' => 'Member User',
+            'primary_contact_number' => '9801000002',
+            'password' => 'secret',
+        ]);
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Reservation Test Scheme',
+            'organizer_id' => $organizer->id,
+            'total_seats' => 4,
+            'total_periods' => 4,
+            'installment_amount' => 5000,
+            'interest_amount' => 200,
+            'khaja_kharcha' => 500,
+            'frequency' => 'monthly',
+            'start_date' => '2024-04-14',
+            'status' => 'active',
+        ]);
+
+        $this->schemeService->initializeScheme($scheme);
+
+        $this->schemeService->assignSeat($scheme, 2, $member);
+        $seat2 = $scheme->seats()->where('seat_number', 2)->first();
+
+        $period3 = $scheme->periods()->where('period_number', 3)->first();
+
+        // Apply reservation
+        $reservation = $this->schemeService->applyPeriodReservation(
+            $scheme,
+            $period3,
+            $member,
+            $seat2,
+            'Need funds for festive season',
+            $organizer
+        );
+
+        $this->assertInstanceOf(SchemePeriodReservation::class, $reservation);
+        $this->assertEquals('pending', $reservation->status);
+        $this->assertEquals($member->id, $reservation->user_id);
+        $this->assertEquals($seat2->id, $reservation->scheme_seat_id);
+
+        // Approve reservation
+        $this->schemeService->approvePeriodReservation($reservation, $organizer);
+        $reservation->refresh();
+        $this->assertEquals('approved', $reservation->status);
+        $this->assertNotNull($reservation->reviewed_at);
+
+        $period3->refresh();
+        $this->assertNotNull($period3->approvedReservation);
+        $this->assertEquals($reservation->id, $period3->approvedReservation->id);
+    }
+
+    public function test_declare_winner_records_payout_details_and_calculates_balance(): void
+    {
+        $organizer = User::create([
+            'name' => 'Organizer',
+            'primary_contact_number' => '9801000001',
+            'password' => 'secret',
+        ]);
+
+        $member = User::create([
+            'name' => 'Winner Member',
+            'primary_contact_number' => '9801000002',
+            'password' => 'secret',
+        ]);
+
+        $member3 = User::create([
+            'name' => 'Member Three',
+            'primary_contact_number' => '9801000003',
+            'password' => 'secret',
+        ]);
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Payout Settlement Scheme',
+            'organizer_id' => $organizer->id,
+            'total_seats' => 3,
+            'total_periods' => 3,
+            'installment_amount' => 10000,
+            'interest_amount' => 500,
+            'khaja_kharcha' => 1000,
+            'frequency' => 'monthly',
+            'start_date' => '2024-04-14',
+            'status' => 'active',
+        ]);
+
+        $this->schemeService->initializeScheme($scheme);
+
+        $this->schemeService->assignSeat($scheme, 2, $member);
+        $this->schemeService->assignSeat($scheme, 3, $member3);
+        $seat2 = $scheme->seats()->where('seat_number', 2)->first();
+
+        // Period 1 is won by organizer
+        $period1 = $scheme->periods()->where('period_number', 1)->first();
+        $seat1 = $scheme->seats()->where('seat_number', 1)->first();
+        $this->schemeService->declareWinner($scheme, $period1, $seat1);
+
+        // Declare Period 2 winner with eSewa payout method and partial payment
+        $period2 = $scheme->periods()->where('period_number', 2)->first();
+        $preview = $this->schemeService->calculateWinnerPayoutPreview($scheme, $period2, $seat2);
+
+        $this->schemeService->declareWinner(
+            $scheme,
+            $period2,
+            $seat2,
+            'Notes for payout',
+            'eSewa',
+            'ESEWA-TXN-984123',
+            15000 // Partial paid amount
+        );
+
+        $period2->refresh();
+        $this->assertEquals('eSewa', $period2->payout_method);
+        $this->assertEquals('ESEWA-TXN-984123', $period2->payout_reference);
+        $this->assertEquals(15000, (float) $period2->paid_amount);
+        $this->assertEquals($preview['net_payout'] - 15000, $period2->winner_balance_remaining);
+
+        // Settle remaining balance
+        $remaining = $period2->winner_balance_remaining;
+        $this->schemeService->settleWinnerPayout(
+            $period2,
+            $remaining,
+            'Bank Transfer',
+            'NABIL-RTGS-5544'
+        );
+
+        $period2->refresh();
+        $this->assertEquals(0, $period2->winner_balance_remaining);
+        $this->assertEquals($preview['net_payout'], (float) $period2->paid_amount);
+    }
+
+    public function test_manage_savings_scheme_livewire_round_modal_and_settlement(): void
+    {
+        $role = Role::create(['name' => 'super_admin']);
+        $user = User::create([
+            'name' => 'Super Admin User',
+            'primary_contact_number' => '9801000000',
+            'password' => 'secret',
+        ]);
+        $user->assignRole($role);
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Livewire Management Scheme',
+            'organizer_id' => $user->id,
+            'total_seats' => 3,
+            'total_periods' => 3,
+            'installment_amount' => 5000,
+            'interest_amount' => 200,
+            'khaja_kharcha' => 500,
+            'frequency' => 'monthly',
+            'start_date' => '2024-04-14',
+            'status' => 'active',
+        ]);
+
+        $this->schemeService->initializeScheme($scheme);
+
+        $this->actingAs($user);
+
+        $period1 = $scheme->periods()->where('period_number', 1)->first();
+        $installment = $period1->installments()->first();
+
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme->id])
+            ->assertSuccessful()
+            ->call('openPeriodDetails', $period1->id)
+            ->assertSet('viewPeriodId', $period1->id)
+            ->call('closePeriodDetails')
+            ->assertSet('viewPeriodId', null)
+            ->call('promptMarkInstallmentPaid', $installment->id)
+            ->assertSet('selectedInstallmentId', $installment->id)
+            ->assertSet('installmentPaymentMethod', 'Cash')
+            ->set('installmentPaymentMethod', 'Khalti')
+            ->set('installmentPaymentReference', 'KHALTI-1234')
+            ->call('confirmMarkInstallmentPaid')
+            ->assertSet('selectedInstallmentId', null);
+
+        $installment->refresh();
+        $this->assertEquals('paid', $installment->status);
+        $this->assertEquals('Khalti', $installment->payment_method);
+        $this->assertStringContainsString('KHALTI-1234', (string) $installment->notes);
+    }
+}

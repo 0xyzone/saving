@@ -6,6 +6,7 @@ use App\Models\SavingsScheme;
 use App\Models\SchemeApplication;
 use App\Models\SchemeInstallment;
 use App\Models\SchemePeriod;
+use App\Models\SchemePeriodReservation;
 use App\Models\SchemeSeat;
 use App\Models\User;
 use Carbon\Carbon;
@@ -32,24 +33,40 @@ class SavingsSchemeService
                 ]);
             }
 
-            // 2. Create periods with due dates based on frequency
+            // 2. Create periods with due dates based on frequency (supporting Nepali calendar)
+            $startBs = filled($scheme->start_date_bs)
+                ? $scheme->start_date_bs
+                : NepaliDateService::toBs($scheme->start_date);
+
             $startDate = Carbon::parse($scheme->start_date);
 
             for ($p = 1; $p <= $scheme->total_periods; $p++) {
-                $dueDate = match ($scheme->frequency) {
-                    'daily' => $startDate->copy()->addDays($p - 1),
-                    'weekly' => $startDate->copy()->addWeeks($p - 1),
-                    'biweekly' => $startDate->copy()->addWeeks(($p - 1) * 2),
-                    'monthly' => $startDate->copy()->addMonthsNoOverflow($p - 1),
-                    default => $startDate->copy()->addMonthsNoOverflow($p - 1),
-                };
+                if ($scheme->frequency === 'monthly') {
+                    $dueDateBs = NepaliDateService::addNepaliMonths($startBs, $p - 1);
+                    $dueDate = Carbon::parse(NepaliDateService::toAd($dueDateBs));
+                } else {
+                    $dueDate = match ($scheme->frequency) {
+                        'daily' => $startDate->copy()->addDays($p - 1),
+                        'weekly' => $startDate->copy()->addWeeks($p - 1),
+                        'biweekly' => $startDate->copy()->addWeeks(($p - 1) * 2),
+                        default => $startDate->copy()->addMonthsNoOverflow($p - 1),
+                    };
+                    $dueDateBs = NepaliDateService::toBs($dueDate);
+                }
 
                 SchemePeriod::create([
                     'savings_scheme_id' => $scheme->id,
                     'period_number' => $p,
                     'due_date' => $dueDate,
+                    'due_date_bs' => $dueDateBs,
                     'status' => $p === 1 ? 'in_progress' : 'upcoming',
                 ]);
+            }
+
+            // 3. Generate initial installments for Period 1
+            $firstPeriod = $scheme->periods()->where('period_number', 1)->first();
+            if ($firstPeriod) {
+                $this->generatePeriodInstallments($scheme, $firstPeriod);
             }
         });
     }
@@ -182,7 +199,10 @@ class SavingsSchemeService
         SavingsScheme $scheme,
         SchemePeriod $period,
         SchemeSeat $winningSeat,
-        ?string $payoutNotes = null
+        ?string $payoutNotes = null,
+        string $payoutMethod = 'Cash',
+        ?string $payoutReference = null,
+        ?float $paidAmount = null
     ): void {
         if ($winningSeat->savings_scheme_id !== $scheme->id) {
             throw new InvalidArgumentException('Seat does not belong to this scheme.');
@@ -196,8 +216,10 @@ class SavingsSchemeService
             throw new InvalidArgumentException("Seat #{$winningSeat->seat_number} has already won in Period #{$winningSeat->won_at_period}.");
         }
 
-        DB::transaction(function () use ($scheme, $period, $winningSeat, $payoutNotes): void {
+        DB::transaction(function () use ($scheme, $period, $winningSeat, $payoutNotes, $payoutMethod, $payoutReference, $paidAmount): void {
             $payout = $this->calculateWinnerPayoutPreview($scheme, $period, $winningSeat);
+            $actualPaid = $paidAmount !== null ? $paidAmount : $payout['net_payout'];
+            $payoutStatus = ($actualPaid >= $payout['net_payout']) ? 'paid' : 'partial';
 
             // Update Winning Seat
             $winningSeat->update([
@@ -213,7 +235,10 @@ class SavingsSchemeService
                 'winner_dues_deducted' => $payout['winner_dues'],
                 'khaja_kharcha_deducted' => $payout['khaja_kharcha'],
                 'net_payout_amount' => $payout['net_payout'],
-                'payout_status' => 'paid',
+                'paid_amount' => $actualPaid,
+                'payout_status' => $payoutStatus,
+                'payout_method' => $payoutMethod,
+                'payout_reference' => $payoutReference,
                 'paid_at' => now(),
                 'payout_notes' => $payoutNotes,
                 'status' => 'completed',
@@ -243,5 +268,78 @@ class SavingsSchemeService
                 }
             }
         });
+    }
+
+    /**
+     * Settle or record an additional payout payment to the period winner.
+     */
+    public function settleWinnerPayout(
+        SchemePeriod $period,
+        float $amount,
+        string $method = 'Cash',
+        ?string $reference = null,
+        ?string $notes = null
+    ): void {
+        $newPaidAmount = (float) $period->paid_amount + $amount;
+        $status = ($newPaidAmount >= (float) $period->net_payout_amount) ? 'paid' : 'partial';
+
+        $period->update([
+            'paid_amount' => $newPaidAmount,
+            'payout_status' => $status,
+            'payout_method' => $method,
+            'payout_reference' => $reference,
+            'payout_notes' => $notes ?: $period->payout_notes,
+            'paid_at' => now(),
+        ]);
+    }
+
+    /**
+     * Create a period reservation request or direct reservation.
+     */
+    public function applyPeriodReservation(
+        SavingsScheme $scheme,
+        SchemePeriod $period,
+        User $user,
+        ?SchemeSeat $seat,
+        ?string $reason,
+        User $requestedBy,
+        bool $directApprove = false
+    ): SchemePeriodReservation {
+        return SchemePeriodReservation::create([
+            'savings_scheme_id' => $scheme->id,
+            'scheme_period_id' => $period->id,
+            'scheme_seat_id' => $seat?->id,
+            'user_id' => $user->id,
+            'requested_by_user_id' => $requestedBy->id,
+            'reason' => $reason,
+            'status' => $directApprove ? 'approved' : 'pending',
+            'reviewed_by' => $directApprove ? $requestedBy->id : null,
+            'reviewed_at' => $directApprove ? now() : null,
+        ]);
+    }
+
+    /**
+     * Approve a period reservation.
+     */
+    public function approvePeriodReservation(SchemePeriodReservation $reservation, User $reviewer): void
+    {
+        $reservation->update([
+            'status' => 'approved',
+            'reviewed_by' => $reviewer->id,
+            'reviewed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Reject a period reservation.
+     */
+    public function rejectPeriodReservation(SchemePeriodReservation $reservation, User $reviewer, ?string $adminNotes = null): void
+    {
+        $reservation->update([
+            'status' => 'rejected',
+            'admin_notes' => $adminNotes,
+            'reviewed_by' => $reviewer->id,
+            'reviewed_at' => now(),
+        ]);
     }
 }
