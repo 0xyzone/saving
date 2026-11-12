@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Filament\Resources\Users\UserResource;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -23,6 +24,14 @@ class UserForm
                         TextInput::make('name')
                             ->required()
                             ->maxLength(255),
+
+                        Select::make('roles')
+                            ->relationship('roles', 'name')
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->label('Roles')
+                            ->visible(fn (): bool => UserResource::canShield('ManageRoles')),
 
                         TextInput::make('primary_contact_number')
                             ->label('Primary Contact Number (Used for Login)')
@@ -68,6 +77,7 @@ class UserForm
 
                 Section::make('Payment Options')
                     ->description('Multiple bank accounts and digital wallets for this user')
+                    ->visible(fn (): bool => UserResource::canShield('ManagePaymentOptions'))
                     ->schema([
                         Repeater::make('paymentOptions')
                             ->relationship('paymentOptions')

@@ -5,6 +5,20 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-12
+
+### Added
+- Comprehensive Roles and Permissions implementation powered by Filament Shield (`bezhansalleh/filament-shield`) and Shield Enhanced (`agroezinger/filament-shield-enhanced`).
+- Published and customized `RoleResource` with navigation-grouped permission management tabs for Resources, Pages, Widgets, and custom permissions.
+- Fine-grained multi-action resource permissions on `UserResource` (`ManageRoles`, `ManagePaymentOptions`, `Export`) with custom descriptions and conditional UI visibility.
+- Role assignment and management inside the User management resource (multiple role selection with search and preload, table badges, and infolist entries).
+- Automated database seeding for roles and permissions via `RoleAndPermissionSeeder` integrated into `DatabaseSeeder`.
+- Comprehensive feature tests covering role access control, fine-grained resource permission checks, and permission form rendering.
+
+### Security
+- Strict authorization policies (`UserPolicy` and `RolePolicy`) enforced across panels with gate-based super-admin bypass.
+- Dedicated `canAccessPanel` authorization for panel access control.
+
 ## [1.0.6] - 2026-11-05
 
 ### Added

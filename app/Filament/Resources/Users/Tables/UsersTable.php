@@ -43,6 +43,12 @@ class UsersTable
                                 ->copyable()
                                 ->color('gray')
                                 ->size('sm'),
+
+                            TextColumn::make('roles.name')
+                                ->badge()
+                                ->color('info')
+                                ->separator(' ')
+                                ->size('xs'),
                         ])->space(1),
 
                         TextColumn::make('payment_options_count')

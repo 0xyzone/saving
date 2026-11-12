@@ -26,6 +26,13 @@ class UserInfolist
                             ->label('Full Name')
                             ->weight('bold'),
 
+                        TextEntry::make('roles.name')
+                            ->label('Assigned Roles')
+                            ->badge()
+                            ->color('info')
+                            ->separator(', ')
+                            ->placeholder('No roles assigned'),
+
                         TextEntry::make('primary_contact_number')
                             ->label('Primary Contact (Login Number)')
                             ->copyable(),

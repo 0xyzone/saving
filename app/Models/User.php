@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use BezhanSalleh\FilamentShield\Support\Utils;
+use BezhanSalleh\FilamentShield\Traits\HasPanelShield;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasAvatar;
@@ -14,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
     'name',
@@ -28,7 +31,7 @@ use Illuminate\Support\Facades\Storage;
 class User extends Authenticatable implements FilamentUser, HasAvatar
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasPanelShield, HasRoles, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -48,7 +51,15 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return true;
+        if (app()->runningInConsole()) {
+            return true;
+        }
+
+        if ($this->hasRole(Utils::getSuperAdminName())) {
+            return true;
+        }
+
+        return (bool) $this->hasRole(Utils::getPanelUserRoleName());
     }
 
     /**

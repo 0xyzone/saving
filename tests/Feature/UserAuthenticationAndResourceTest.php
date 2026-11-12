@@ -6,6 +6,7 @@ use App\Filament\Pages\Auth\Login;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class UserAuthenticationAndResourceTest extends TestCase
@@ -62,15 +63,32 @@ class UserAuthenticationAndResourceTest extends TestCase
 
     public function test_authenticated_user_can_access_users_resource(): void
     {
+        $role = Role::create(['name' => 'super_admin']);
+
         $user = User::create([
             'name' => 'Admin User',
             'primary_contact_number' => '9800000001',
+            'password' => 'secret123',
+        ]);
+        $user->assignRole($role);
+
+        $this->actingAs($user);
+
+        $response = $this->get('/users');
+        $response->assertStatus(200);
+    }
+
+    public function test_unauthorized_user_cannot_access_users_resource(): void
+    {
+        $user = User::create([
+            'name' => 'Regular User',
+            'primary_contact_number' => '9800000002',
             'password' => 'secret123',
         ]);
 
         $this->actingAs($user);
 
         $response = $this->get('/users');
-        $response->assertStatus(200);
+        $response->assertStatus(403);
     }
 }
