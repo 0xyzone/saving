@@ -30,6 +30,10 @@ class UserResource extends Resource
 
     protected static \UnitEnum|string|null $navigationGroup = 'Access Management';
 
+    protected static ?int $navigationSort = 1;
+
+    protected static ?string $navigationLabel = 'Users';
+
     public static function getShieldResourcePermissions(): array
     {
         return [

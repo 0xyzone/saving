@@ -28,9 +28,9 @@ class AppServiceProvider extends ServiceProvider
         Model::unguard();
 
         // 1. Globally configure all Create/Edit/View modal actions to be slide-over
-        CreateAction::configureUsing(fn (CreateAction $action) => $action->slideOver());
-        EditAction::configureUsing(fn (EditAction $action) => $action->slideOver());
-        ViewAction::configureUsing(fn (ViewAction $action) => $action->slideOver());
+        CreateAction::configureUsing(fn (CreateAction $action) => $action->slideOver()->modalWidth('6xl'));
+        EditAction::configureUsing(fn (EditAction $action) => $action->slideOver()->modalWidth('7xl'));
+        ViewAction::configureUsing(fn (ViewAction $action) => $action->slideOver()->modalWidth('7xl'));
 
         // 2. Globally optimize Tables for clean mobile layouts
         Table::configureUsing(function (Table $table): void {

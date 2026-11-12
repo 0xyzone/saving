@@ -11,6 +11,7 @@ use App\Filament\Resources\Roles\Pages\CreateRole;
 use App\Filament\Resources\Roles\Pages\EditRole;
 use App\Filament\Resources\Roles\Pages\ListRoles;
 use App\Filament\Resources\Roles\Pages\ViewRole;
+use BackedEnum;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use BezhanSalleh\FilamentShield\Support\Utils;
 use BezhanSalleh\FilamentShield\Traits\HasShieldFormComponents;
@@ -32,10 +33,10 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\FontWeight;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Unique;
 use Override;
-use UnitEnum;
 
 class RoleResource extends Resource
 {
@@ -48,7 +49,35 @@ class RoleResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static UnitEnum|string|null $navigationGroup = 'Access Management';
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Access Management';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return 'Roles and Permissions';
+    }
+
+    public static function getNavigationIcon(): string|BackedEnum|Htmlable|null
+    {
+        return 'heroicon-o-shield-check';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 2;
+    }
+
+    public static function getModelLabel(): string
+    {
+        return 'Role';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Roles and Permissions';
+    }
 
     public static function getShieldFormComponents(): Component
     {
