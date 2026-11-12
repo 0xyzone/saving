@@ -31,6 +31,10 @@ class SchemePeriod extends Model
         'paid_at',
         'payout_notes',
         'status',
+        'is_validated',
+        'validated_at',
+        'validated_by',
+        'validation_notes',
     ];
 
     protected function casts(): array
@@ -39,6 +43,8 @@ class SchemePeriod extends Model
             'period_number' => 'integer',
             'due_date' => 'date',
             'paid_at' => 'datetime',
+            'is_validated' => 'boolean',
+            'validated_at' => 'datetime',
             'gross_pool_amount' => 'decimal:2',
             'winner_dues_deducted' => 'decimal:2',
             'khaja_kharcha_deducted' => 'decimal:2',
@@ -101,5 +107,10 @@ class SchemePeriod extends Model
     public function approvedReservation(): HasOne
     {
         return $this->hasOne(SchemePeriodReservation::class)->where('status', 'approved');
+    }
+
+    public function validator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'validated_by');
     }
 }

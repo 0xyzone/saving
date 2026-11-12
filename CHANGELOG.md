@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dedicated Round Details Summary**:
   - Dedicated View Details slide-over/modal per round displaying gross pool, member dues deductions, Khaja Kharcha fees, net prize, paid sum, and remaining balance due.
   - Real-time collection metrics and complete member installment ledger with payment verification details.
+- **Dedicated Round Details & Interaction**:
+  - Clickable round rows to instantly initiate the dedicated Round Summary view modal.
+  - In-row and in-modal **Reserve Round** buttons with instant seat allocation and reason tracking.
+  - In-row and in-modal **Round Audit & Validation** modal featuring reconciliation checklists for member collections (paid vs pending, unpaid member list) and prize payout status, with official audit sign-off and validation timestamps.
+  - Dedicated **Edit Scheme** header action modal to adjust scheme title, organizer, interest, and Khaja Kharcha on the fly.
+  - Configured full-width panel layout (`Width::Full`) and desktop-collapsible sidebar (`sidebarCollapsibleOnDesktop()`).
 - **Multi-Channel Settlement Recording**:
   - Support for `Cash`, `eSewa`, `Khalti`, `Bank Transfer`, and `Other` payment methods with reference tracking for both winner prize payouts and member installment collections.
   - Partial payout handling with dynamic remaining balance calculations and dedicated settlement completion actions.

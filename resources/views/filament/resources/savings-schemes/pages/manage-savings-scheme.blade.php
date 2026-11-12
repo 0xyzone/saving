@@ -75,7 +75,8 @@
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         @foreach ($record->periods as $period)
-                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition {{ $period->period_number === $record->current_period ? 'bg-amber-500/5' : '' }}">
+                            <tr wire:click="openPeriodDetails({{ $period->id }})"
+                                class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition group {{ $period->period_number === $record->current_period ? 'bg-amber-500/5' : '' }}">
                                 <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                                     Round #{{ $period->period_number }}
                                     @if ($period->period_number === 1)
@@ -176,19 +177,40 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-center whitespace-nowrap">
-                                    @if ($period->status === 'completed')
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Completed</span>
-                                    @elseif ($period->status === 'in_progress')
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse">In Progress</span>
-                                    @else
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">Upcoming</span>
-                                    @endif
+                                    <div class="flex flex-col items-center gap-1">
+                                        @if ($period->is_validated)
+                                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                                                <span>✓</span> Validated
+                                            </span>
+                                        @endif
+                                        @if ($period->status === 'completed')
+                                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Completed</span>
+                                        @elseif ($period->status === 'in_progress')
+                                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse">In Progress</span>
+                                        @else
+                                            <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">Upcoming</span>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-center whitespace-nowrap">
-                                    <button type="button" wire:click="openPeriodDetails({{ $period->id }})"
-                                        class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition">
-                                        View Details
-                                    </button>
+                                    <div class="flex items-center justify-center gap-1.5" @click.stop>
+                                        <button type="button" wire:click="openPeriodDetails({{ $period->id }})"
+                                            class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition">
+                                            View
+                                        </button>
+                                        @if ($period->period_number > 1 && $period->status !== 'completed')
+                                            <button type="button" wire:click="openReserveModal({{ $period->id }})"
+                                                class="px-2.5 py-1 text-xs font-medium rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 transition flex items-center gap-1"
+                                                title="Reserve Round #{{ $period->period_number }}">
+                                                <span>🔖</span> Reserve
+                                            </button>
+                                        @endif
+                                        <button type="button" wire:click="openValidateRound({{ $period->id }})"
+                                            class="px-2.5 py-1 text-xs font-medium rounded-lg {{ $period->is_validated ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25' : 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300' }} transition flex items-center gap-1"
+                                            title="{{ $period->is_validated ? 'Round Validated - Click to review' : 'Validate Round' }}">
+                                            <span>{{ $period->is_validated ? '✓' : '⚖️' }}</span> {{ $period->is_validated ? 'Validated' : 'Validate' }}
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -369,14 +391,53 @@
                             </div>
                         </div>
 
-                        <button type="button" wire:click="closePeriodDetails"
-                            class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            @if ($viewPeriod->period_number > 1 && $viewPeriod->status !== 'completed')
+                                <button type="button" wire:click="openReserveModal({{ $viewPeriod->id }})"
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition flex items-center gap-1.5 shadow-sm">
+                                    <span>🔖</span> Reserve Round
+                                </button>
+                            @endif
+
+                            <button type="button" wire:click="openValidateRound({{ $viewPeriod->id }})"
+                                class="px-3 py-1.5 text-xs font-semibold rounded-lg {{ $viewPeriod->is_validated ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white' }} transition flex items-center gap-1.5 shadow-sm">
+                                <span>{{ $viewPeriod->is_validated ? '✓' : '⚖️' }}</span> {{ $viewPeriod->is_validated ? 'Validated' : 'Validate Round' }}
+                            </button>
+
+                            <button type="button" wire:click="closePeriodDetails"
+                                class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
                     </div>
 
                     {{-- Modal Content --}}
                     <div class="p-6 space-y-6">
+                        @if ($viewPeriod->is_validated)
+                            <div class="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="text-lg">✓</span>
+                                    <div>
+                                        <div class="font-bold text-sm">Round Officially Reconciled & Validated</div>
+                                        <div class="text-emerald-700/80 dark:text-emerald-300/80 mt-0.5">
+                                            @if ($viewPeriod->validator)
+                                                <span>Validated by <strong>{{ $viewPeriod->validator->name }}</strong></span>
+                                            @endif
+                                            @if ($viewPeriod->validated_at)
+                                                <span> on {{ $viewPeriod->validated_at->format('M d, Y · h:i A') }}</span>
+                                            @endif
+                                        </div>
+                                        @if ($viewPeriod->validation_notes)
+                                            <div class="mt-1 text-slate-600 dark:text-slate-400 italic">"{{ $viewPeriod->validation_notes }}"</div>
+                                        @endif
+                                    </div>
+                                </div>
+                                <button type="button" wire:click="toggleRevokeValidation({{ $viewPeriod->id }})"
+                                    class="px-2.5 py-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-md transition">
+                                    Revoke
+                                </button>
+                            </div>
+                        @endif
                         {{-- 4 Metric Cards --}}
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-800">
@@ -609,6 +670,245 @@
                             class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition">
                             Confirm & Mark Paid
                         </button>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endif
+
+    {{-- MODAL 3: Direct Reserve Round Modal --}}
+    @if ($reservingPeriodId)
+        @php
+            $resPeriod = $record->periods->firstWhere('id', $reservingPeriodId);
+            $availableSeats = $record->seats()
+                ->where('seat_number', '!=', 1)
+                ->whereNull('won_at_period')
+                ->with('user')
+                ->get();
+        @endphp
+        @if ($resPeriod)
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <span>🔖</span> Reserve Round #{{ $resPeriod->period_number }}
+                            </h3>
+                            <div class="text-xs text-slate-500 mt-0.5">
+                                Due Date: <strong>{{ $resPeriod->formatted_due_date_bs }}</strong>
+                            </div>
+                        </div>
+                        <button type="button" wire:click="closeReserveModal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">✕</button>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                Member Seat to Reserve <span class="text-rose-500">*</span>
+                            </label>
+                            <select wire:model="reservingSeatId"
+                                class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                <option value="">-- Select Member Seat --</option>
+                                @foreach ($availableSeats as $s)
+                                    <option value="{{ $s->id }}">
+                                        Seat #{{ $s->seat_number }} — {{ $s->user?->name ?? 'Unassigned' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                Reason / Occasion
+                            </label>
+                            <textarea wire:model="reservingReason" rows="2" placeholder="e.g. Wedding in Magh, House renovation, Business expense"
+                                class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                Reservation Status
+                            </label>
+                            <select wire:model="reservingStatus"
+                                class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                <option value="approved">Approved (Lock seat as reserved)</option>
+                                <option value="pending">Pending Application</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <button type="button" wire:click="closeReserveModal"
+                            class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+                            Cancel
+                        </button>
+                        <button type="button" wire:click="confirmReserve"
+                            class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition flex items-center gap-1">
+                            <span>🔖</span> Save Reservation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endif
+
+    {{-- MODAL 4: Round Audit & Validation Modal --}}
+    @if ($validatingPeriodId)
+        @php
+            $valPeriod = $record->periods->firstWhere('id', $validatingPeriodId);
+            $totalSeatsCount = $valPeriod?->installments->count() ?? 0;
+            $paidSeatsCount = $valPeriod?->installments->where('status', 'paid')->count() ?? 0;
+            $unpaidInstallments = $valPeriod?->installments->where('status', '!=', 'paid') ?? collect();
+            $targetPool = max(0.00, (float) $valPeriod?->gross_pool_amount - (float) $valPeriod?->winner_dues_deducted);
+            $collectedAmount = (float) $valPeriod?->total_collected_amount;
+            $pendingCollection = max(0.00, $targetPool - $collectedAmount);
+            $isWinnerDeclared = (bool) $valPeriod?->winning_seat_id;
+            $winnerBalanceRemaining = (float) $valPeriod?->winner_balance_remaining;
+        @endphp
+        @if ($valPeriod)
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
+                    {{-- Modal Header --}}
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <span>⚖️</span> Audit & Validate Round #{{ $valPeriod->period_number }}
+                            </h3>
+                            <div class="text-xs text-slate-500 mt-0.5">
+                                Due: <strong>{{ $valPeriod->formatted_due_date_bs }}</strong>
+                                ({{ $valPeriod->due_date ? $valPeriod->due_date->format('M d, Y') . ' AD' : '-' }})
+                            </div>
+                        </div>
+                        <button type="button" wire:click="closeValidateRound" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">✕</button>
+                    </div>
+
+                    {{-- Validation Status Badge --}}
+                    @if ($valPeriod->is_validated)
+                        <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-800 dark:text-emerald-300">
+                            <div class="font-bold flex items-center gap-1.5">
+                                <span>✓</span> Officially Validated
+                            </div>
+                            <div class="mt-0.5 text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
+                                @if ($valPeriod->validator)
+                                    <span>Validated by <strong>{{ $valPeriod->validator->name }}</strong></span>
+                                @endif
+                                @if ($valPeriod->validated_at)
+                                    <span> on {{ $valPeriod->validated_at->format('M d, Y · h:i A') }}</span>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Checklist Section 1: Member Collections --}}
+                    <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <span>1️⃣</span> Member Collections Reconciliation
+                            </span>
+                            @if ($pendingCollection <= 0.01 && $paidSeatsCount >= $totalSeatsCount && $totalSeatsCount > 0)
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                                    ✓ 100% Collected
+                                </span>
+                            @else
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                    Pending Balance
+                                </span>
+                            @endif
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                            <div><span class="text-slate-500">Collected:</span> <strong class="font-mono text-emerald-600 dark:text-emerald-400">Rs. {{ number_format($collectedAmount, 2) }}</strong></div>
+                            <div><span class="text-slate-500">Target Pool:</span> <strong class="font-mono text-slate-800 dark:text-slate-200">Rs. {{ number_format($targetPool, 2) }}</strong></div>
+                            <div><span class="text-slate-500">Seats Paid:</span> <strong class="text-slate-800 dark:text-slate-200">{{ $paidSeatsCount }} / {{ $totalSeatsCount }}</strong></div>
+                            <div><span class="text-slate-500">Pending Amount:</span> <strong class="font-mono text-rose-500">Rs. {{ number_format($pendingCollection, 2) }}</strong></div>
+                        </div>
+
+                        @if ($unpaidInstallments->count() > 0)
+                            <div class="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/60 text-[11px]">
+                                <div class="font-semibold text-rose-500 mb-1">Unpaid Member Seats:</div>
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach ($unpaidInstallments as $ui)
+                                        <span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium">
+                                            Seat #{{ $ui->seat?->seat_number }}: {{ $ui->user?->name ?? 'Unassigned' }} (Rs. {{ number_format((float) $ui->total_due, 0) }})
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- Checklist Section 2: Winner & Prize Payout --}}
+                    <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <span>2️⃣</span> Winner Prize Payout Reconciliation
+                            </span>
+                            @if ($isWinnerDeclared && $winnerBalanceRemaining <= 0.01)
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                                    ✓ Payout Settled
+                                </span>
+                            @elseif ($isWinnerDeclared)
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                    Partial Payout
+                                </span>
+                            @else
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-slate-700">
+                                    Winner Pending
+                                </span>
+                            @endif
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                            <div class="col-span-2">
+                                <span class="text-slate-500">Winner:</span>
+                                <strong class="text-slate-900 dark:text-white">
+                                    @if ($valPeriod->winnerUser)
+                                        {{ $valPeriod->winnerUser->name }} (Seat #{{ $valPeriod->winningSeat?->seat_number }})
+                                    @elseif ($valPeriod->period_number === 1)
+                                        {{ $record->organizer?->name ?? 'Organizer' }} (Seat #1 · Reserved)
+                                    @else
+                                        <span class="text-slate-400 italic font-normal">Not declared yet</span>
+                                    @endif
+                                </strong>
+                            </div>
+                            <div><span class="text-slate-500">Net Prize:</span> <strong class="font-mono text-emerald-600 dark:text-emerald-400">Rs. {{ number_format((float) $valPeriod->net_payout_amount, 2) }}</strong></div>
+                            <div><span class="text-slate-500">Paid to Winner:</span> <strong class="font-mono text-slate-800 dark:text-slate-200">Rs. {{ number_format((float) $valPeriod->paid_amount, 2) }}</strong></div>
+                            @if ($winnerBalanceRemaining > 0)
+                                <div class="col-span-2"><span class="text-slate-500">Remaining Balance:</span> <strong class="font-mono text-rose-500">Rs. {{ number_format($winnerBalanceRemaining, 2) }}</strong></div>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Validation Notes Input --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Reconciliation & Validation Notes (Optional)
+                        </label>
+                        <textarea wire:model="validationNotes" rows="2" placeholder="e.g. Verified bank receipts and signed vouchers by organizer."
+                            class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+                    </div>
+
+                    {{-- Actions --}}
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div>
+                            @if ($valPeriod->is_validated)
+                                <button type="button" wire:click="toggleRevokeValidation({{ $valPeriod->id }})"
+                                    class="px-3 py-1.5 text-xs font-medium rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition">
+                                    Revoke Validation
+                                </button>
+                            @endif
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button type="button" wire:click="closeValidateRound"
+                                class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+                                Close
+                            </button>
+                            <button type="button" wire:click="confirmValidateRound"
+                                class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5">
+                                <span>✓</span> {{ $valPeriod->is_validated ? 'Update Validation' : 'Confirm & Validate Round' }}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

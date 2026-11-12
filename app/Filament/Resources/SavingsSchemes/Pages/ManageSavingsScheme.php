@@ -74,6 +74,63 @@ class ManageSavingsScheme extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('edit_scheme')
+                ->label('Edit Scheme')
+                ->icon('heroicon-m-pencil-square')
+                ->color('gray')
+                ->modalHeading('Edit Savings Scheme')
+                ->fillForm(fn () => [
+                    'title' => $this->record->title,
+                    'organizer_id' => $this->record->organizer_id,
+                    'status' => $this->record->status,
+                    'interest_amount' => $this->record->interest_amount,
+                    'khaja_kharcha' => $this->record->khaja_kharcha,
+                    'description' => $this->record->description,
+                ])
+                ->form([
+                    TextInput::make('title')
+                        ->label('Scheme Title')
+                        ->required()
+                        ->maxLength(255),
+                    Select::make('organizer_id')
+                        ->label('Organizer (Holds Seat #1)')
+                        ->options(fn () => User::pluck('name', 'id')->toArray())
+                        ->searchable()
+                        ->required(),
+                    Select::make('status')
+                        ->label('Status')
+                        ->options([
+                            'draft' => 'Draft',
+                            'open_for_applications' => 'Open for Applications',
+                            'active' => 'Active / In Progress',
+                            'completed' => 'Completed',
+                            'cancelled' => 'Cancelled',
+                        ])
+                        ->required(),
+                    TextInput::make('interest_amount')
+                        ->label('Interest per Round')
+                        ->numeric()
+                        ->prefix('Rs.')
+                        ->required(),
+                    TextInput::make('khaja_kharcha')
+                        ->label('Khaja Kharcha per Round')
+                        ->numeric()
+                        ->prefix('Rs.')
+                        ->required(),
+                    Textarea::make('description')
+                        ->label('Description / Notes')
+                        ->rows(3),
+                ])
+                ->action(function (array $data): void {
+                    $this->record->update($data);
+                    Notification::make()
+                        ->title('Scheme Updated')
+                        ->body('Savings scheme details updated successfully.')
+                        ->success()
+                        ->send();
+                    $this->record->refresh();
+                }),
+
             Action::make('declare_winner')
                 ->label(fn () => $this->record->current_period === 1
                     ? 'Settle Period #1 Payout (Organizer)'
@@ -631,6 +688,132 @@ class ManageSavingsScheme extends Page
             ->title('Payout Recorded')
             ->body('Rs. '.number_format($amount, 2)." paid to {$period->winnerUser?->name} via {$method}.")
             ->success()
+            ->send();
+
+        $this->record->refresh();
+    }
+
+    public ?int $reservingPeriodId = null;
+
+    public ?int $reservingSeatId = null;
+
+    public ?string $reservingReason = null;
+
+    public string $reservingStatus = 'approved';
+
+    public function openReserveModal(int $periodId): void
+    {
+        $this->reservingPeriodId = $periodId;
+        $this->reservingSeatId = null;
+        $this->reservingReason = null;
+        $this->reservingStatus = 'approved';
+    }
+
+    public function closeReserveModal(): void
+    {
+        $this->reservingPeriodId = null;
+        $this->reservingSeatId = null;
+        $this->reservingReason = null;
+    }
+
+    public function confirmReserve(): void
+    {
+        if (! $this->reservingPeriodId || ! $this->reservingSeatId) {
+            Notification::make()->title('Please select a member seat to reserve.')->warning()->send();
+
+            return;
+        }
+
+        $period = $this->record->periods()->findOrFail($this->reservingPeriodId);
+        $seat = $this->record->seats()->findOrFail($this->reservingSeatId);
+        $user = $seat->user ?? User::findOrFail($this->record->organizer_id);
+
+        app(SavingsSchemeService::class)->applyPeriodReservation(
+            $this->record,
+            $period,
+            $user,
+            $seat,
+            $this->reservingReason,
+            auth()->user(),
+            directApprove: ($this->reservingStatus === 'approved')
+        );
+
+        Notification::make()
+            ->title($this->reservingStatus === 'approved' ? 'Round Reserved' : 'Reservation Application Submitted')
+            ->body("Round #{$period->period_number} reserved for Seat #{$seat->seat_number} ({$user->name}).")
+            ->success()
+            ->send();
+
+        $this->closeReserveModal();
+        $this->record->refresh();
+    }
+
+    public ?int $validatingPeriodId = null;
+
+    public ?string $validationNotes = null;
+
+    public function openValidateRound(int $periodId): void
+    {
+        $this->validatingPeriodId = $periodId;
+        $period = $this->record->periods()->find($periodId);
+        $this->validationNotes = $period?->validation_notes;
+    }
+
+    public function closeValidateRound(): void
+    {
+        $this->validatingPeriodId = null;
+        $this->validationNotes = null;
+    }
+
+    public function confirmValidateRound(): void
+    {
+        if (! $this->validatingPeriodId) {
+            return;
+        }
+
+        if (! SavingsSchemeResource::canShield('DeclareWinner') && ! auth()->user()?->hasRole('super_admin')) {
+            Notification::make()->title('Unauthorized to validate rounds.')->danger()->send();
+
+            return;
+        }
+
+        $period = $this->record->periods()->findOrFail($this->validatingPeriodId);
+        $period->update([
+            'is_validated' => true,
+            'validated_at' => now(),
+            'validated_by' => auth()->id(),
+            'validation_notes' => $this->validationNotes,
+        ]);
+
+        Notification::make()
+            ->title('Round Validated')
+            ->body("Round #{$period->period_number} has been officially reconciled and validated.")
+            ->success()
+            ->send();
+
+        $this->closeValidateRound();
+        $this->record->refresh();
+    }
+
+    public function toggleRevokeValidation(int $periodId): void
+    {
+        if (! SavingsSchemeResource::canShield('DeclareWinner') && ! auth()->user()?->hasRole('super_admin')) {
+            Notification::make()->title('Unauthorized')->danger()->send();
+
+            return;
+        }
+
+        $period = $this->record->periods()->findOrFail($periodId);
+        $period->update([
+            'is_validated' => false,
+            'validated_at' => null,
+            'validated_by' => null,
+        ]);
+
+        Notification::make()
+            ->title('Validation Revoked')
+            ->body("Round #{$period->period_number} validation has been revoked.")
+            ->info()
             ->send();
 
         $this->record->refresh();

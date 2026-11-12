@@ -269,5 +269,60 @@ class NepaliDateAndPeriodReservationTest extends TestCase
         $this->assertEquals('paid', $installment->status);
         $this->assertEquals('Khalti', $installment->payment_method);
         $this->assertStringContainsString('KHALTI-1234', (string) $installment->notes);
+
+        // Test Round Validation Modal workflow
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme->id])
+            ->assertSuccessful()
+            ->call('openValidateRound', $period1->id)
+            ->assertSet('validatingPeriodId', $period1->id)
+            ->set('validationNotes', 'All accounts verified by committee auditor')
+            ->call('confirmValidateRound')
+            ->assertSet('validatingPeriodId', null);
+
+        $period1->refresh();
+        $this->assertTrue($period1->is_validated);
+        $this->assertEquals($user->id, $period1->validated_by);
+        $this->assertEquals('All accounts verified by committee auditor', $period1->validation_notes);
+
+        // Test Revoking Validation
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme->id])
+            ->call('toggleRevokeValidation', $period1->id);
+
+        $period1->refresh();
+        $this->assertFalse($period1->is_validated);
+
+        // Test Direct Reserve Round Modal workflow
+        $period2 = $scheme->periods()->where('period_number', 2)->first();
+        $seat2 = $scheme->seats()->where('seat_number', 2)->first();
+
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme->id])
+            ->call('openReserveModal', $period2->id)
+            ->assertSet('reservingPeriodId', $period2->id)
+            ->set('reservingSeatId', $seat2->id)
+            ->set('reservingReason', 'Urgent family gathering')
+            ->set('reservingStatus', 'approved')
+            ->call('confirmReserve')
+            ->assertSet('reservingPeriodId', null);
+
+        $period2->refresh();
+        $this->assertNotNull($period2->approvedReservation);
+        $this->assertEquals($seat2->id, $period2->approvedReservation->scheme_seat_id);
+
+        // Test Edit Scheme header action
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme->id])
+            ->callAction('edit_scheme', [
+                'title' => 'Updated Committee Scheme Title',
+                'organizer_id' => $user->id,
+                'status' => 'active',
+                'interest_amount' => 350,
+                'khaja_kharcha' => 750,
+                'description' => 'Updated committee description',
+            ])
+            ->assertHasNoActionErrors();
+
+        $scheme->refresh();
+        $this->assertEquals('Updated Committee Scheme Title', $scheme->title);
+        $this->assertEquals(350, (float) $scheme->interest_amount);
+        $this->assertEquals(750, (float) $scheme->khaja_kharcha);
     }
 }
