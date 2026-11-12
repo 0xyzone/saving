@@ -16,7 +16,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
+use STS\FilamentImpersonate\Facades\Impersonation;
 
 #[Fillable([
     'name',
@@ -46,12 +48,29 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::created(function (User $user): void {
+            if ($user->roles()->count() === 0) {
+                $panelRole = Role::where('name', Utils::getPanelUserRoleName())->first();
+                if ($panelRole) {
+                    $user->assignRole($panelRole);
+                }
+            }
+        });
+    }
+
     /**
      * Determine if the user can access the given panel.
      */
     public function canAccessPanel(Panel $panel): bool
     {
         if (app()->runningInConsole()) {
+            return true;
+        }
+
+        // Allow panel access when an authorized admin is impersonating this user
+        if (class_exists(Impersonation::class) && Impersonation::isImpersonating()) {
             return true;
         }
 
@@ -82,8 +101,19 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
         return $this->hasMany(UserPaymentOption::class);
     }
 
-    public function canImpersonate()
+    /**
+     * Determine if the user can impersonate other users.
+     */
+    public function canImpersonate(): bool
     {
-        return $this->hasRole('super_admin');
+        return $this->hasRole(Utils::getSuperAdminName());
+    }
+
+    /**
+     * Determine if this user can be impersonated.
+     */
+    public function canBeImpersonated(): bool
+    {
+        return true;
     }
 }

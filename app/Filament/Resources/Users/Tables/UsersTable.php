@@ -111,7 +111,7 @@ class UsersTable
                 ViewAction::make()->slideOver(),
                 EditAction::make()->slideOver(),
                 Impersonate::make()
-                ->redirectTo(route('filament.panel.pages.dashboard')),
+                    ->redirectTo(route('filament.panel.pages.dashboard')),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

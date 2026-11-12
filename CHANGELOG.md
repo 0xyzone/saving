@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Partial payout handling with dynamic remaining balance calculations and dedicated settlement completion actions.
 - Comprehensive automated test suite (`NepaliDateAndPeriodReservationTest`) verifying date conversions, month-end capping, reservation approvals, multi-channel settlements, and interactive Livewire modals.
 
+### Fixed
+- **Filament Impersonation 403 Forbidden Access**:
+  - Resolved 403 error during user impersonation by allowing panel access in `User::canAccessPanel()` when an active impersonation session (`Impersonation::isImpersonating()`) is in effect.
+  - Implemented automatic `panel_user` role assignment for newly created and existing users via model hook and database migration, ensuring non-super-admin users can access the panel without authorization lockouts.
+  - Configured `canImpersonate()` (restricted to super admin) and `canBeImpersonated()` on `User` model.
+  - Added full test suite in `ImpersonationTest.php` covering impersonation flows and leave routes.
+
 ## [1.2.0] - 2026-11-12
 
 ### Added
