@@ -8,8 +8,10 @@ use App\Models\SchemeInstallment;
 use App\Models\SchemePeriod;
 use App\Models\SchemeSeat;
 use App\Models\User;
+use App\Services\NepaliDateService;
 use App\Services\SavingsSchemeService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -17,6 +19,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
+use Filament\Schemas\Components\Grid;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\HtmlString;
 
@@ -79,24 +82,36 @@ class ManageSavingsScheme extends Page
                 ->icon('heroicon-m-pencil-square')
                 ->color('gray')
                 ->modalHeading('Edit Savings Scheme')
-                ->fillForm(fn () => [
-                    'title' => $this->record->title,
-                    'organizer_id' => $this->record->organizer_id,
-                    'status' => $this->record->status,
-                    'interest_amount' => $this->record->interest_amount,
-                    'khaja_kharcha' => $this->record->khaja_kharcha,
-                    'description' => $this->record->description,
-                ])
+                ->fillForm(function () {
+                    $bs = $this->record->start_date_bs ?? ($this->record->start_date ? NepaliDateService::toBs($this->record->start_date) : NepaliDateService::currentBsDate());
+                    [$y, $m, $d] = NepaliDateService::explodeBs($bs);
+
+                    return [
+                        'title' => $this->record->title,
+                        'organizer_id' => $this->record->organizer_id,
+                        'status' => $this->record->status,
+                        'bs_year' => $y,
+                        'bs_month' => $m,
+                        'bs_day' => $d,
+                        'start_date_bs' => $bs,
+                        'start_date' => $this->record->start_date?->format('Y-m-d') ?: NepaliDateService::toAd($bs),
+                        'interest_amount' => $this->record->interest_amount,
+                        'khaja_kharcha' => $this->record->khaja_kharcha,
+                        'description' => $this->record->description,
+                    ];
+                })
                 ->form([
                     TextInput::make('title')
                         ->label('Scheme Title')
                         ->required()
                         ->maxLength(255),
+
                     Select::make('organizer_id')
                         ->label('Organizer (Holds Seat #1)')
                         ->options(fn () => User::pluck('name', 'id')->toArray())
                         ->searchable()
                         ->required(),
+
                     Select::make('status')
                         ->label('Status')
                         ->options([
@@ -107,16 +122,97 @@ class ManageSavingsScheme extends Page
                             'cancelled' => 'Cancelled',
                         ])
                         ->required(),
+
+                    Grid::make(3)
+                        ->schema([
+                            Select::make('bs_year')
+                                ->label('Nepali Year (वर्ष)')
+                                ->options(NepaliDateService::getNepaliYears())
+                                ->live()
+                                ->dehydrated(false)
+                                ->afterStateUpdated(function (callable $get, callable $set) {
+                                    $y = (int) ($get('bs_year') ?: 2081);
+                                    $m = (int) ($get('bs_month') ?: 1);
+                                    $d = (int) ($get('bs_day') ?: 1);
+                                    $max = NepaliDateService::daysInMonth($m, $y);
+                                    if ($d > $max) {
+                                        $d = $max;
+                                        $set('bs_day', $d);
+                                    }
+                                    $bs = sprintf('%04d-%02d-%02d', $y, $m, $d);
+                                    $set('start_date_bs', $bs);
+                                    $set('start_date', NepaliDateService::toAd($bs));
+                                })
+                                ->required(),
+
+                            Select::make('bs_month')
+                                ->label('Nepali Month (महिना)')
+                                ->options(NepaliDateService::getNepaliMonths())
+                                ->live()
+                                ->dehydrated(false)
+                                ->afterStateUpdated(function (callable $get, callable $set) {
+                                    $y = (int) ($get('bs_year') ?: 2081);
+                                    $m = (int) ($get('bs_month') ?: 1);
+                                    $d = (int) ($get('bs_day') ?: 1);
+                                    $max = NepaliDateService::daysInMonth($m, $y);
+                                    if ($d > $max) {
+                                        $d = $max;
+                                        $set('bs_day', $d);
+                                    }
+                                    $bs = sprintf('%04d-%02d-%02d', $y, $m, $d);
+                                    $set('start_date_bs', $bs);
+                                    $set('start_date', NepaliDateService::toAd($bs));
+                                })
+                                ->required(),
+
+                            Select::make('bs_day')
+                                ->label('Nepali Day (गते)')
+                                ->options(function (callable $get) {
+                                    $m = (int) ($get('bs_month') ?: 1);
+                                    $y = (int) ($get('bs_year') ?: 2081);
+
+                                    return NepaliDateService::getNepaliDays($m, $y);
+                                })
+                                ->live()
+                                ->dehydrated(false)
+                                ->afterStateUpdated(function (callable $get, callable $set) {
+                                    $y = (int) ($get('bs_year') ?: 2081);
+                                    $m = (int) ($get('bs_month') ?: 1);
+                                    $d = (int) ($get('bs_day') ?: 1);
+                                    $bs = sprintf('%04d-%02d-%02d', $y, $m, $d);
+                                    $set('start_date_bs', $bs);
+                                    $set('start_date', NepaliDateService::toAd($bs));
+                                })
+                                ->required(),
+                        ]),
+
+                    Grid::make(2)
+                        ->schema([
+                            TextInput::make('start_date_bs')
+                                ->label('Nepali Date (BS)')
+                                ->readOnly()
+                                ->helperText(fn (callable $get) => '🗓️ '.NepaliDateService::formatBs($get('start_date_bs')))
+                                ->required(),
+
+                            DatePicker::make('start_date')
+                                ->label('Auto-Filled English Date (AD)')
+                                ->readOnly()
+                                ->helperText('Auto-calculated from selected Nepali date')
+                                ->required(),
+                        ]),
+
                     TextInput::make('interest_amount')
                         ->label('Interest per Round')
                         ->numeric()
                         ->prefix('Rs.')
                         ->required(),
+
                     TextInput::make('khaja_kharcha')
                         ->label('Khaja Kharcha per Round')
                         ->numeric()
                         ->prefix('Rs.')
                         ->required(),
+
                     Textarea::make('description')
                         ->label('Description / Notes')
                         ->rows(3),
@@ -125,7 +221,7 @@ class ManageSavingsScheme extends Page
                     $this->record->update($data);
                     Notification::make()
                         ->title('Scheme Updated')
-                        ->body('Savings scheme details updated successfully.')
+                        ->body('Savings scheme details and Nepali period due dates synchronized.')
                         ->success()
                         ->send();
                     $this->record->refresh();

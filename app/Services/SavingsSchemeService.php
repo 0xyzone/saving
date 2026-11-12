@@ -91,6 +91,45 @@ class SavingsSchemeService
     }
 
     /**
+     * Recalculate and synchronize due dates for all periods of a scheme based on Nepali calendar.
+     */
+    public function syncPeriodDueDates(SavingsScheme $scheme): void
+    {
+        $startBs = filled($scheme->start_date_bs)
+            ? $scheme->start_date_bs
+            : NepaliDateService::toBs($scheme->start_date);
+
+        if (blank($startBs)) {
+            return;
+        }
+
+        $periods = $scheme->periods()->orderBy('period_number')->get();
+
+        foreach ($periods as $period) {
+            $p = $period->period_number;
+
+            if ($scheme->frequency === 'monthly') {
+                $dueDateBs = NepaliDateService::addNepaliMonths($startBs, $p - 1);
+                $dueDate = Carbon::parse(NepaliDateService::toAd($dueDateBs));
+            } else {
+                $startDate = Carbon::parse($scheme->start_date ?: NepaliDateService::toAd($startBs));
+                $dueDate = match ($scheme->frequency) {
+                    'daily' => $startDate->copy()->addDays($p - 1),
+                    'weekly' => $startDate->copy()->addWeeks($p - 1),
+                    'biweekly' => $startDate->copy()->addWeeks(($p - 1) * 2),
+                    default => $startDate->copy()->addMonthsNoOverflow($p - 1),
+                };
+                $dueDateBs = NepaliDateService::toBs($dueDate);
+            }
+
+            $period->update([
+                'due_date_bs' => $dueDateBs,
+                'due_date' => $dueDate,
+            ]);
+        }
+    }
+
+    /**
      * Approve seat application and assign requested seats.
      *
      * @param  array<int>  $seatNumbers

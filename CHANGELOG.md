@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Bikram Sambat (Nepali BS) Calendar Integration**:
-  - Integrated `anuzpandey/laravel-nepali-date` package with custom `NepaliDateService` providing bidirectional BS ↔ AD conversion, Nepali month names, and day-capped arithmetic across month transitions.
-  - Interactive graphical calendar popup on scheme creation synchronized with `start_date_bs` and formatted Bikram Sambat helper badges.
+  - Integrated `anuzpandey/laravel-nepali-date` package with custom `NepaliDateService` providing bidirectional BS ↔ AD conversion, Nepali month names (Roman & Devanagari), and day-capped arithmetic across month transitions.
+  - Replaced English date calendar selection with primary **Nepali Date Dropdowns (Year, Month, Day)** in both creation and edit pages with real-time automatic auto-filling and conversion of Gregorian (English AD) dates.
+  - Grounded round due dates strictly in the Nepali calendar period (matching the exact Nepali day of the month for every round, e.g. 26th of Kartik, Mangsir, Poush, etc.), with Gregorian AD due dates derived automatically.
   - Formatted Nepali dates (`formatted_start_date_bs` and `formatted_due_date_bs`) rendered across scheme list tables and round timelines.
 - **Round & Period Reservation System**:
   - `scheme_period_reservations` architecture allowing members to apply for specific future round payouts with reason justifications.

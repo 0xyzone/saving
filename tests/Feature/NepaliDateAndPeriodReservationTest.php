@@ -325,4 +325,61 @@ class NepaliDateAndPeriodReservationTest extends TestCase
         $this->assertEquals(350, (float) $scheme->interest_amount);
         $this->assertEquals(750, (float) $scheme->khaja_kharcha);
     }
+
+    public function test_nepali_date_dropdown_helpers_and_period_due_date_calculation(): void
+    {
+        $years = NepaliDateService::getNepaliYears();
+        $this->assertNotEmpty($years);
+
+        $months = NepaliDateService::getNepaliMonths();
+        $this->assertCount(12, $months);
+
+        $days = NepaliDateService::getNepaliDays(1, 2083);
+        $this->assertNotEmpty($days);
+
+        [$y, $m, $d] = NepaliDateService::explodeBs('2083-08-15');
+        $this->assertEquals(2083, $y);
+        $this->assertEquals(8, $m);
+        $this->assertEquals(15, $d);
+
+        $user = User::create([
+            'name' => 'Nepali Organizer',
+            'primary_contact_number' => '9801122334',
+            'password' => 'secret',
+        ]);
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Nepali Calendar Scheme',
+            'organizer_id' => $user->id,
+            'total_seats' => 4,
+            'total_periods' => 4,
+            'installment_amount' => 5000,
+            'interest_amount' => 200,
+            'khaja_kharcha' => 500,
+            'frequency' => 'monthly',
+            'start_date_bs' => '2083-08-15',
+            'status' => 'active',
+        ]);
+
+        $this->schemeService->initializeScheme($scheme);
+
+        $scheme->refresh();
+        $this->assertNotNull($scheme->start_date);
+        $this->assertEquals(NepaliDateService::toAd('2083-08-15'), $scheme->start_date->format('Y-m-d'));
+
+        $periods = $scheme->periods()->orderBy('period_number')->get();
+        $this->assertCount(4, $periods);
+
+        // Due dates should strictly follow Nepali months
+        $this->assertEquals('2083-08-15', $periods[0]->due_date_bs);
+        $this->assertEquals('2083-09-15', $periods[1]->due_date_bs);
+        $this->assertEquals('2083-10-15', $periods[2]->due_date_bs);
+        $this->assertEquals('2083-11-15', $periods[3]->due_date_bs);
+
+        // Gregorian dates must match the respective Nepali due dates
+        foreach ($periods as $period) {
+            $expectedAd = NepaliDateService::toAd($period->due_date_bs);
+            $this->assertEquals($expectedAd, $period->due_date->format('Y-m-d'));
+        }
+    }
 }

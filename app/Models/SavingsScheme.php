@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\NepaliDateService;
+use App\Services\SavingsSchemeService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -60,6 +61,12 @@ class SavingsScheme extends Model
                 $scheme->start_date = NepaliDateService::toAd($scheme->start_date_bs);
             } elseif ($scheme->isDirty('start_date') && filled($scheme->start_date)) {
                 $scheme->start_date_bs = NepaliDateService::toBs($scheme->start_date);
+            }
+        });
+
+        static::updated(function (SavingsScheme $scheme): void {
+            if ($scheme->wasChanged(['start_date_bs', 'start_date', 'frequency'])) {
+                app(SavingsSchemeService::class)->syncPeriodDueDates($scheme);
             }
         });
     }

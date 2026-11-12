@@ -49,44 +49,81 @@ class SavingsSchemeForm
 
                         Grid::make(3)
                             ->schema([
-                                DatePicker::make('start_date')
-                                    ->label('Start Date (Calendar Picker)')
-                                    ->native(false)
-                                    ->default(now())
+                                Select::make('bs_year')
+                                    ->label('Nepali Year (वर्ष)')
+                                    ->options(NepaliDateService::getNepaliYears())
+                                    ->default(fn () => (int) substr(NepaliDateService::currentBsDate(), 0, 4))
                                     ->live()
-                                    ->afterStateUpdated(function ($state, callable $set) {
-                                        if ($state) {
-                                            $set('start_date_bs', NepaliDateService::toBs($state));
-                                        }
+                                    ->dehydrated(false)
+                                    ->afterStateHydrated(function ($state, callable $set, $record) {
+                                        $bs = $record?->start_date_bs ?? ($record?->start_date ? NepaliDateService::toBs($record->start_date) : NepaliDateService::currentBsDate());
+                                        [$y] = NepaliDateService::explodeBs($bs);
+                                        $set('bs_year', $y);
                                     })
-                                    ->helperText(function (callable $get) {
-                                        $ad = $get('start_date');
-                                        if (! $ad) {
-                                            return null;
-                                        }
-
-                                        return '🗓️ Nepali: '.NepaliDateService::formatBs($ad);
+                                    ->afterStateUpdated(function (callable $get, callable $set) {
+                                        static::syncNepaliToEnglishDate($get, $set);
                                     })
                                     ->required(),
 
-                                TextInput::make('start_date_bs')
-                                    ->label('Nepali Date (Bikram Sambat BS)')
-                                    ->placeholder('e.g. 2083-08-01')
-                                    ->default(fn () => NepaliDateService::currentBsDate())
-                                    ->live(onBlur: true)
-                                    ->afterStateUpdated(function ($state, callable $set) {
-                                        if ($state && preg_match('/^\d{4}-\d{2}-\d{2}$/', $state)) {
-                                            $set('start_date', NepaliDateService::toAd($state));
-                                        }
+                                Select::make('bs_month')
+                                    ->label('Nepali Month (महिना)')
+                                    ->options(NepaliDateService::getNepaliMonths())
+                                    ->default(fn () => (int) substr(NepaliDateService::currentBsDate(), 5, 2))
+                                    ->live()
+                                    ->dehydrated(false)
+                                    ->afterStateHydrated(function ($state, callable $set, $record) {
+                                        $bs = $record?->start_date_bs ?? ($record?->start_date ? NepaliDateService::toBs($record->start_date) : NepaliDateService::currentBsDate());
+                                        [, $m] = NepaliDateService::explodeBs($bs);
+                                        $set('bs_month', $m);
                                     })
-                                    ->helperText(fn ($state) => $state ? NepaliDateService::formatBs($state) : null)
-                                    ->required()
-                                    ->rules(['regex:/^\d{4}-\d{2}-\d{2}$/']),
+                                    ->afterStateUpdated(function (callable $get, callable $set) {
+                                        static::syncNepaliToEnglishDate($get, $set);
+                                    })
+                                    ->required(),
+
+                                Select::make('bs_day')
+                                    ->label('Nepali Day (गते)')
+                                    ->options(function (callable $get) {
+                                        $m = (int) ($get('bs_month') ?: 1);
+                                        $y = (int) ($get('bs_year') ?: 2081);
+
+                                        return NepaliDateService::getNepaliDays($m, $y);
+                                    })
+                                    ->default(fn () => (int) substr(NepaliDateService::currentBsDate(), 8, 2))
+                                    ->live()
+                                    ->dehydrated(false)
+                                    ->afterStateHydrated(function ($state, callable $set, $record) {
+                                        $bs = $record?->start_date_bs ?? ($record?->start_date ? NepaliDateService::toBs($record->start_date) : NepaliDateService::currentBsDate());
+                                        [, , $d] = NepaliDateService::explodeBs($bs);
+                                        $set('bs_day', $d);
+                                    })
+                                    ->afterStateUpdated(function (callable $get, callable $set) {
+                                        static::syncNepaliToEnglishDate($get, $set);
+                                    })
+                                    ->required(),
+                            ])
+                            ->columnSpanFull(),
+
+                        Grid::make(3)
+                            ->schema([
+                                TextInput::make('start_date_bs')
+                                    ->label('Nepali Date (BS)')
+                                    ->default(fn () => NepaliDateService::currentBsDate())
+                                    ->readOnly()
+                                    ->helperText(fn (callable $get) => '🗓️ '.NepaliDateService::formatBs($get('start_date_bs')))
+                                    ->required(),
+
+                                DatePicker::make('start_date')
+                                    ->label('Auto-Filled English Date (AD)')
+                                    ->default(now())
+                                    ->readOnly()
+                                    ->helperText('Auto-calculated from selected Nepali date')
+                                    ->required(),
 
                                 Select::make('frequency')
                                     ->label('Period Frequency')
                                     ->options([
-                                        'monthly' => 'Monthly (Nepali BS Months)',
+                                        'monthly' => 'Monthly (Every Nepali BS Month)',
                                         'biweekly' => 'Bi-Weekly',
                                         'weekly' => 'Weekly',
                                         'daily' => 'Daily',
@@ -144,5 +181,24 @@ class SavingsSchemeForm
                             ]),
                     ]),
             ]);
+    }
+
+    public static function syncNepaliToEnglishDate(callable $get, callable $set): void
+    {
+        $y = (int) ($get('bs_year') ?: 2081);
+        $m = (int) ($get('bs_month') ?: 1);
+        $d = (int) ($get('bs_day') ?: 1);
+
+        $maxDays = NepaliDateService::daysInMonth($m, $y);
+        if ($d > $maxDays) {
+            $d = $maxDays;
+            $set('bs_day', $d);
+        }
+
+        $bsString = sprintf('%04d-%02d-%02d', $y, $m, $d);
+        $set('start_date_bs', $bsString);
+
+        $adString = NepaliDateService::toAd($bsString);
+        $set('start_date', $adString);
     }
 }
