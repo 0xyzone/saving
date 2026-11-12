@@ -84,6 +84,6 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
 
     public function canImpersonate()
     {
-        return $this->is_superadmin;
+        return $this->hasRole('super_admin');
     }
 }
