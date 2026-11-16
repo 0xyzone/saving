@@ -37,7 +37,7 @@ class PanelPanelProvider extends PanelProvider
             ->login(Login::class)
             ->brandName('Saving Portal')
             ->brandLogo(fn () => view('filament.brand'))
-            ->favicon(app()->isLocal() ? asset('images/favicon-local.svg') : asset('images/favicon-prod.svg'))
+            ->favicon(fn (): string => static::isLocalHost() ? asset('images/favicon-local.svg') : asset('images/favicon-prod.svg'))
             ->maxContentWidth(Width::Full)
             ->sidebarCollapsibleOnDesktop()
             ->colors([
@@ -108,5 +108,18 @@ class PanelPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+    }
+
+    public static function isLocalHost(): bool
+    {
+        if (app()->runningInConsole()) {
+            return app()->isLocal();
+        }
+
+        $host = request()->getHost();
+
+        return str_ends_with($host, '.local')
+            || str_ends_with($host, '.test')
+            || in_array($host, ['localhost', '127.0.0.1'], true);
     }
 }

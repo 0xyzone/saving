@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Changelog & Release Notes | Saving Portal</title>
-    <link rel="icon" type="image/svg+xml" href="{{ app()->isLocal() ? asset('images/favicon-local.svg') : asset('images/favicon-prod.svg') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ \App\Providers\Filament\PanelPanelProvider::isLocalHost() ? asset('images/favicon-local.svg') : asset('images/favicon-prod.svg') }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
