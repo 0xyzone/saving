@@ -310,4 +310,26 @@ class RolesAndPermissionsTest extends TestCase
                 'roles' => [$panelUserRole->id],
             ]);
     }
+
+    public function test_create_user_form_has_panel_user_role_selected_by_default(): void
+    {
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $panelUserRole = Role::firstOrCreate(['name' => 'panel_user', 'guard_name' => 'web']);
+
+        $admin = User::create([
+            'name' => 'Super Admin',
+            'primary_contact_number' => '9802350986',
+            'password' => 'secret123',
+        ]);
+        $admin->assignRole($superAdminRole);
+
+        $this->actingAs($admin);
+
+        Livewire::test(\App\Filament\Resources\Users\Pages\CreateUser::class)
+            ->assertSuccessful()
+            ->assertFormFieldExists('roles')
+            ->assertFormSet([
+                'roles' => [$panelUserRole->id],
+            ]);
+    }
 }
