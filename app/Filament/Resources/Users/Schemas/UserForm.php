@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Filament\Resources\Users\UserResource;
+use BezhanSalleh\FilamentShield\Support\Utils;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -11,6 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Spatie\Permission\Models\Role;
 
 class UserForm
 {
@@ -29,8 +31,14 @@ class UserForm
                             ->relationship('roles', 'name')
                             ->multiple()
                             ->preload()
-                            ->default('panel_user')
                             ->searchable()
+                            ->default(function () {
+                                $panelUserRole = Role::where('name', Utils::getPanelUserRoleName())
+                                    ->where('guard_name', Utils::getFilamentAuthGuard())
+                                    ->first();
+
+                                return $panelUserRole ? [$panelUserRole->id] : [];
+                            })
                             ->label('Roles')
                             ->visible(fn (): bool => UserResource::canShield('ManageRoles')),
 
