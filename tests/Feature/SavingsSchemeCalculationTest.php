@@ -327,4 +327,68 @@ class SavingsSchemeCalculationTest extends TestCase
         $this->assertEquals('auto_settled_winner', $seat2Installment->status);
         $this->assertEquals('auto_settled_winner', $seat3Installment->status);
     }
+
+    public function test_dynamic_seat_allocation_auto_expands_rounds_and_periods(): void
+    {
+        $organizer = User::create([
+            'name' => 'Auto Organizer',
+            'primary_contact_number' => '9801999991',
+            'password' => 'secret',
+        ]);
+
+        // Create scheme without specifying total_seats (defaults to 1 seat & 1 round)
+        $scheme = SavingsScheme::create([
+            'title' => 'Auto Dynamic Rounds Scheme',
+            'organizer_id' => $organizer->id,
+            'installment_amount' => 5000,
+            'interest_amount' => 250,
+            'khaja_kharcha' => 500,
+            'frequency' => 'monthly',
+            'start_date' => now()->toDateString(),
+            'status' => 'draft',
+        ]);
+
+        $this->service->initializeScheme($scheme);
+        $scheme->refresh();
+
+        // Starts with only Seat #1 (Organizer) and Period #1
+        $this->assertEquals(1, $scheme->total_seats);
+        $this->assertEquals(1, $scheme->total_periods);
+        $this->assertCount(1, $scheme->seats);
+        $this->assertCount(1, $scheme->periods);
+
+        // Allocate Member 1 (auto-generates Seat #2 and Period #2)
+        $member1 = User::create([
+            'name' => 'Member One',
+            'primary_contact_number' => '9801999992',
+            'password' => 'secret',
+        ]);
+        $seat2 = $this->service->allocateSeat($scheme, $member1);
+        $scheme->refresh();
+
+        $this->assertEquals(2, $seat2->seat_number);
+        $this->assertEquals(2, $scheme->total_seats);
+        $this->assertEquals(2, $scheme->total_periods);
+        $this->assertCount(2, $scheme->seats);
+        $this->assertCount(2, $scheme->periods);
+
+        // Allocate Member 2 (auto-generates Seat #3 and Period #3)
+        $member2 = User::create([
+            'name' => 'Member Two',
+            'primary_contact_number' => '9801999993',
+            'password' => 'secret',
+        ]);
+        $seat3 = $this->service->allocateSeat($scheme, $member2);
+        $scheme->refresh();
+
+        $this->assertEquals(3, $seat3->seat_number);
+        $this->assertEquals(3, $scheme->total_seats);
+        $this->assertEquals(3, $scheme->total_periods);
+        $this->assertCount(3, $scheme->seats);
+        $this->assertCount(3, $scheme->periods);
+
+        // Period 1 should now have installments for all 3 seats
+        $period1 = $scheme->periods()->where('period_number', 1)->first();
+        $this->assertCount(3, $period1->installments);
+    }
 }

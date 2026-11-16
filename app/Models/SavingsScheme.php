@@ -45,7 +45,11 @@ class SavingsScheme extends Model
     protected static function booted(): void
     {
         static::creating(function (SavingsScheme $scheme): void {
-            if (empty($scheme->total_periods) && ! empty($scheme->total_seats)) {
+            if (empty($scheme->total_seats)) {
+                $scheme->total_seats = 1;
+            }
+
+            if (empty($scheme->total_periods)) {
                 $scheme->total_periods = $scheme->total_seats;
             }
 

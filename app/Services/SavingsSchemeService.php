@@ -17,30 +17,109 @@ class SavingsSchemeService
 {
     /**
      * Initialize seats and periods for a newly created savings scheme.
+     * Starts with Seat #1 (Organizer) and Period #1, dynamically expanding as seats are allocated.
      */
     public function initializeScheme(SavingsScheme $scheme): void
     {
         DB::transaction(function () use ($scheme): void {
-            // 1. Create seats
-            for ($i = 1; $i <= $scheme->total_seats; $i++) {
+            $initialSeats = max(1, (int) ($scheme->total_seats ?: 1));
+
+            // 1. Create initial seats (Seat #1 is reserved for organizer)
+            for ($i = 1; $i <= $initialSeats; $i++) {
                 $isOrganizerSeat = ($i === 1);
 
-                SchemeSeat::create([
+                SchemeSeat::firstOrCreate(
+                    [
+                        'savings_scheme_id' => $scheme->id,
+                        'seat_number' => $i,
+                    ],
+                    [
+                        'user_id' => $isOrganizerSeat ? $scheme->organizer_id : null,
+                        'status' => $isOrganizerSeat ? 'assigned' : 'available',
+                    ]
+                );
+            }
+
+            // 2. Ensure periods match seats count
+            $this->ensurePeriodsMatchSeats($scheme);
+
+            // 3. Generate initial installments for Period 1
+            $firstPeriod = $scheme->periods()->where('period_number', 1)->first();
+            if ($firstPeriod) {
+                $this->generatePeriodInstallments($scheme, $firstPeriod);
+            }
+        });
+    }
+
+    /**
+     * Allocate a new seat to a user, dynamically auto-creating the seat and expanding rounds/periods.
+     */
+    public function allocateSeat(SavingsScheme $scheme, User $user, ?int $preferredSeatNumber = null): SchemeSeat
+    {
+        return DB::transaction(function () use ($scheme, $user, $preferredSeatNumber): SchemeSeat {
+            // If scheme has available seats, check if requested or find next available
+            $seat = null;
+            if ($preferredSeatNumber !== null) {
+                $seat = $scheme->seats()->where('seat_number', $preferredSeatNumber)->first();
+                if ($seat && $seat->user_id !== null && $seat->user_id !== $user->id) {
+                    throw new InvalidArgumentException("Seat #{$preferredSeatNumber} is already assigned to another user.");
+                }
+            }
+
+            if (! $seat) {
+                // Find first unassigned seat if any
+                $seat = $scheme->seats()->whereNull('user_id')->orderBy('seat_number')->first();
+            }
+
+            if (! $seat) {
+                // All current seats are occupied. Dynamically create the next seat.
+                $nextSeatNumber = (int) $scheme->seats()->max('seat_number') + 1;
+                if ($nextSeatNumber < 1) {
+                    $nextSeatNumber = 1;
+                }
+
+                $seat = SchemeSeat::create([
                     'savings_scheme_id' => $scheme->id,
-                    'seat_number' => $i,
-                    'user_id' => $isOrganizerSeat ? $scheme->organizer_id : null,
-                    'status' => $isOrganizerSeat ? 'assigned' : 'available',
+                    'seat_number' => $nextSeatNumber,
+                    'user_id' => $user->id,
+                    'status' => 'assigned',
+                ]);
+            } else {
+                $seat->update([
+                    'user_id' => $user->id,
+                    'status' => 'assigned',
                 ]);
             }
 
-            // 2. Create periods with due dates based on frequency (supporting Nepali calendar)
+            // Sync total seats count
+            $totalSeatsCount = $scheme->seats()->count();
+            $scheme->update([
+                'total_seats' => $totalSeatsCount,
+            ]);
+
+            // Ensure periods are auto-expanded to match the seats count (1 seat = 1 round/period)
+            $this->ensurePeriodsMatchSeats($scheme);
+
+            return $seat;
+        });
+    }
+
+    /**
+     * Ensure scheme periods match the total seats (auto-expanding rounds).
+     */
+    public function ensurePeriodsMatchSeats(SavingsScheme $scheme): void
+    {
+        $totalSeats = max(1, $scheme->seats()->count());
+        $currentPeriodsCount = $scheme->periods()->count();
+
+        if ($currentPeriodsCount < $totalSeats) {
             $startBs = filled($scheme->start_date_bs)
                 ? $scheme->start_date_bs
                 : NepaliDateService::toBs($scheme->start_date);
 
-            $startDate = Carbon::parse($scheme->start_date);
+            $startDate = Carbon::parse($scheme->start_date ?: NepaliDateService::toAd($startBs));
 
-            for ($p = 1; $p <= $scheme->total_periods; $p++) {
+            for ($p = $currentPeriodsCount + 1; $p <= $totalSeats; $p++) {
                 if ($scheme->frequency === 'monthly') {
                     $dueDateBs = NepaliDateService::addNepaliMonths($startBs, $p - 1);
                     $dueDate = Carbon::parse(NepaliDateService::toAd($dueDateBs));
@@ -54,21 +133,30 @@ class SavingsSchemeService
                     $dueDateBs = NepaliDateService::toBs($dueDate);
                 }
 
-                SchemePeriod::create([
-                    'savings_scheme_id' => $scheme->id,
-                    'period_number' => $p,
-                    'due_date' => $dueDate,
-                    'due_date_bs' => $dueDateBs,
-                    'status' => $p === 1 ? 'in_progress' : 'upcoming',
-                ]);
+                SchemePeriod::firstOrCreate(
+                    [
+                        'savings_scheme_id' => $scheme->id,
+                        'period_number' => $p,
+                    ],
+                    [
+                        'due_date' => $dueDate,
+                        'due_date_bs' => $dueDateBs,
+                        'status' => $p === 1 ? 'in_progress' : 'upcoming',
+                    ]
+                );
             }
+        }
 
-            // 3. Generate initial installments for Period 1
-            $firstPeriod = $scheme->periods()->where('period_number', 1)->first();
-            if ($firstPeriod) {
-                $this->generatePeriodInstallments($scheme, $firstPeriod);
-            }
-        });
+        $scheme->update([
+            'total_seats' => $totalSeats,
+            'total_periods' => max($scheme->periods()->count(), $totalSeats),
+        ]);
+
+        // If there is an active current period, refresh installments for the newly added seat
+        $activePeriod = $scheme->periods()->where('period_number', $scheme->current_period)->first();
+        if ($activePeriod) {
+            $this->generatePeriodInstallments($scheme, $activePeriod);
+        }
     }
 
     /**
@@ -76,18 +164,7 @@ class SavingsSchemeService
      */
     public function assignSeat(SavingsScheme $scheme, int $seatNumber, User $user): SchemeSeat
     {
-        $seat = $scheme->seats()->where('seat_number', $seatNumber)->firstOrFail();
-
-        if ($seat->user_id !== null && $seat->user_id !== $user->id) {
-            throw new InvalidArgumentException("Seat #{$seatNumber} is already assigned to another user.");
-        }
-
-        $seat->update([
-            'user_id' => $user->id,
-            'status' => 'assigned',
-        ]);
-
-        return $seat;
+        return $this->allocateSeat($scheme, $user, $seatNumber);
     }
 
     /**

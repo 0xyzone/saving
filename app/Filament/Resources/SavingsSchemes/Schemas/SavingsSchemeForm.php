@@ -142,19 +142,10 @@ class SavingsSchemeForm
                     ->columns(2),
 
                 Section::make('Financial & Period Settings')
-                    ->description('Seats, installments, interest rates, and khaja kharcha rules')
+                    ->description('Installments, interest rates, and khaja kharcha rules (Rounds and seats are auto-calculated dynamically as seats are allocated)')
                     ->schema([
                         Grid::make(2)
                             ->schema([
-                                TextInput::make('total_seats')
-                                    ->label('Total Seats / Periods')
-                                    ->numeric()
-                                    ->default(20)
-                                    ->minValue(2)
-                                    ->maxValue(100)
-                                    ->required()
-                                    ->helperText('1 seat = 1 period. Seat #1 is reserved for the Organizer.'),
-
                                 TextInput::make('installment_amount')
                                     ->label('Installment Amount Per Seat')
                                     ->numeric()
@@ -178,6 +169,14 @@ class SavingsSchemeForm
                                     ->default(1000)
                                     ->required()
                                     ->helperText('Deducted from winner payout from Period 2 onwards (Rs. 0 deduction in Period 1).'),
+
+                                TextInput::make('total_seats')
+                                    ->label('Initial Planned Seats (Optional)')
+                                    ->numeric()
+                                    ->placeholder('Auto-expands on member allocation')
+                                    ->helperText('Leave empty to auto-expand rounds dynamically each time a seat is assigned/approved.')
+                                    ->nullable()
+                                    ->dehydrated(fn ($state) => filled($state)),
                             ]),
                     ]),
             ]);

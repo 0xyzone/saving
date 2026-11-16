@@ -585,34 +585,50 @@ class ManageSavingsScheme extends Page
                 }),
 
             Action::make('assign_seat')
-                ->label('Assign Seat')
+                ->label('Allocate / Assign Seat')
                 ->icon('heroicon-m-user-plus')
                 ->color('primary')
                 ->visible(fn () => SavingsSchemeResource::canShield('ManageSeats'))
+                ->modalHeading('Allocate Seat to Member')
+                ->modalDescription('Assign a member to an existing vacant seat or allocate the next seat dynamically, auto-expanding the scheme rounds.')
                 ->form([
-                    Select::make('seat_number')
-                        ->label('Seat Number')
-                        ->options(fn () => $this->record->seats()
-                            ->where('seat_number', '!=', 1)
-                            ->whereNull('user_id')
-                            ->pluck('seat_number', 'seat_number')
-                            ->toArray()
-                        )
-                        ->required(),
-
                     Select::make('user_id')
-                        ->label('Member')
+                        ->label('Select Member')
                         ->options(fn () => User::where('name', '!=', 'Super Admin')->pluck('name', 'id')->toArray())
                         ->searchable()
                         ->required(),
+
+                    Select::make('seat_number')
+                        ->label('Seat Number')
+                        ->placeholder('Auto-allocate next available seat')
+                        ->options(function () {
+                            $available = $this->record->seats()
+                                ->where('seat_number', '!=', 1)
+                                ->whereNull('user_id')
+                                ->pluck('seat_number', 'seat_number')
+                                ->toArray();
+
+                            $nextNumber = ((int) $this->record->seats()->max('seat_number')) + 1;
+                            if ($nextNumber < 2) {
+                                $nextNumber = 2;
+                            }
+
+                            return $available + [
+                                $nextNumber => "Seat #{$nextNumber} (Next Dynamic Round)",
+                            ];
+                        })
+                        ->helperText('Select a vacant seat or let the system auto-allocate the next round dynamically.')
+                        ->nullable(),
                 ])
                 ->action(function (array $data) {
                     $user = User::findOrFail($data['user_id']);
-                    app(SavingsSchemeService::class)->assignSeat($this->record, (int) $data['seat_number'], $user);
+                    $preferredSeat = filled($data['seat_number'] ?? null) ? (int) $data['seat_number'] : null;
+
+                    $seat = app(SavingsSchemeService::class)->allocateSeat($this->record, $user, $preferredSeat);
 
                     Notification::make()
-                        ->title('Seat Assigned')
-                        ->body("Seat #{$data['seat_number']} has been assigned to {$user->name}.")
+                        ->title('Seat Allocated')
+                        ->body("Seat #{$seat->seat_number} has been allocated to {$user->name}. Total rounds: {$this->record->fresh()->total_periods}.")
                         ->success()
                         ->send();
 
