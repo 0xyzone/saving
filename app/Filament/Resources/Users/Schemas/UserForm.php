@@ -29,6 +29,7 @@ class UserForm
                             ->relationship('roles', 'name')
                             ->multiple()
                             ->preload()
+                            ->default('panel_user')
                             ->searchable()
                             ->label('Roles')
                             ->visible(fn (): bool => UserResource::canShield('ManageRoles')),

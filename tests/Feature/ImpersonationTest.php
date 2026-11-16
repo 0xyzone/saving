@@ -75,3 +75,4 @@ class ImpersonationTest extends TestCase
         $this->assertTrue($user->canAccessPanel($panel));
     }
 }
+
