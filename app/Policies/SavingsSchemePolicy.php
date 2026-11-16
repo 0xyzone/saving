@@ -14,12 +14,12 @@ class SavingsSchemePolicy
 
     public function viewAny(AuthUser $authUser): bool
     {
-        return $authUser->can('ViewAny:SavingsScheme');
+        return $authUser->can('ViewAny:SavingsScheme') || $authUser->organizedSchemes()->exists();
     }
 
     public function view(AuthUser $authUser, SavingsScheme $savingsScheme): bool
     {
-        return $authUser->can('View:SavingsScheme');
+        return $savingsScheme->organizer_id === $authUser->id;
     }
 
     public function create(AuthUser $authUser): bool
@@ -29,12 +29,12 @@ class SavingsSchemePolicy
 
     public function update(AuthUser $authUser, SavingsScheme $savingsScheme): bool
     {
-        return $authUser->can('Update:SavingsScheme');
+        return $savingsScheme->organizer_id === $authUser->id && $authUser->can('Update:SavingsScheme');
     }
 
     public function delete(AuthUser $authUser, SavingsScheme $savingsScheme): bool
     {
-        return $authUser->can('Delete:SavingsScheme');
+        return $savingsScheme->organizer_id === $authUser->id && $authUser->can('Delete:SavingsScheme');
     }
 
     public function deleteAny(AuthUser $authUser): bool
@@ -44,12 +44,12 @@ class SavingsSchemePolicy
 
     public function restore(AuthUser $authUser, SavingsScheme $savingsScheme): bool
     {
-        return $authUser->can('Restore:SavingsScheme');
+        return $savingsScheme->organizer_id === $authUser->id && $authUser->can('Restore:SavingsScheme');
     }
 
     public function forceDelete(AuthUser $authUser, SavingsScheme $savingsScheme): bool
     {
-        return $authUser->can('ForceDelete:SavingsScheme');
+        return $savingsScheme->organizer_id === $authUser->id && $authUser->can('ForceDelete:SavingsScheme');
     }
 
     public function forceDeleteAny(AuthUser $authUser): bool
@@ -64,7 +64,7 @@ class SavingsSchemePolicy
 
     public function replicate(AuthUser $authUser, SavingsScheme $savingsScheme): bool
     {
-        return $authUser->can('Replicate:SavingsScheme');
+        return $savingsScheme->organizer_id === $authUser->id && $authUser->can('Replicate:SavingsScheme');
     }
 
     public function reorder(AuthUser $authUser): bool
@@ -74,16 +74,16 @@ class SavingsSchemePolicy
 
     public function declareWinner(AuthUser $authUser, SavingsScheme $savingsScheme): bool
     {
-        return $authUser->can('DeclareWinner:SavingsScheme');
+        return $savingsScheme->organizer_id === $authUser->id && $authUser->can('DeclareWinner:SavingsScheme');
     }
 
     public function manageInstallments(AuthUser $authUser, SavingsScheme $savingsScheme): bool
     {
-        return $authUser->can('ManageInstallments:SavingsScheme');
+        return $savingsScheme->organizer_id === $authUser->id && $authUser->can('ManageInstallments:SavingsScheme');
     }
 
     public function manageSeats(AuthUser $authUser, SavingsScheme $savingsScheme): bool
     {
-        return $authUser->can('ManageSeats:SavingsScheme');
+        return $savingsScheme->organizer_id === $authUser->id && $authUser->can('ManageSeats:SavingsScheme');
     }
 }

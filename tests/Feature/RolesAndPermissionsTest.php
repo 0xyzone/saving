@@ -261,7 +261,7 @@ class RolesAndPermissionsTest extends TestCase
 
         $installment = $period->installments()->first();
 
-        // Viewer user has view access to the scheme, but lacks ManageInstallments permission
+        // Organizer user has view access to their own scheme, but lacks ManageInstallments permission
         $viewerRole = Role::create(['name' => 'scheme_viewer']);
         $viewerRole->givePermissionTo(['ViewAny:SavingsScheme', 'View:SavingsScheme']);
 
@@ -271,6 +271,7 @@ class RolesAndPermissionsTest extends TestCase
             'password' => 'secret',
         ]);
         $viewerUser->assignRole($viewerRole);
+        $scheme->update(['organizer_id' => $viewerUser->id]);
         $this->actingAs($viewerUser);
 
         Livewire::test(ManageSavingsScheme::class, ['record' => $scheme])

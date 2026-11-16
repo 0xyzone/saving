@@ -4,25 +4,32 @@
             <stop offset="0%" stop-color="#FFFFFF" />
             <stop offset="100%" stop-color="#FFFBEB" />
         </linearGradient>
-        <linearGradient id="sp-light-border" x1="2" y1="2" x2="62" y2="62" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.7" />
-            <stop offset="100%" stop-color="#D97706" stop-opacity="0.9" />
+        <linearGradient id="sp-light-rim" x1="2" y1="2" x2="62" y2="62" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.75" />
+            <stop offset="100%" stop-color="#B45309" stop-opacity="0.9" />
         </linearGradient>
-        <linearGradient id="sp-light-p" x1="34" y1="18" x2="52" y2="46" gradientUnits="userSpaceOnUse">
+        <linearGradient id="sp-light-s" x1="16" y1="16" x2="34" y2="48" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0F172A" />
+            <stop offset="100%" stop-color="#334155" />
+        </linearGradient>
+        <linearGradient id="sp-light-p" x1="30" y1="16" x2="48" y2="48" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stop-color="#F59E0B" />
             <stop offset="100%" stop-color="#B45309" />
         </linearGradient>
     </defs>
-    <!-- Squircle Container -->
-    <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#sp-light-bg)" stroke="url(#sp-light-border)" stroke-width="2.5" />
-    <!-- Subtle inner accent line -->
-    <rect x="5.5" y="5.5" width="53" height="53" rx="13" stroke="#F59E0B" stroke-opacity="0.14" stroke-width="1" />
-    <!-- Letter S (Deep Slate for crisp light-mode contrast) -->
-    <path d="M 27.5 22.5 C 26 20 22.5 19.5 19.5 20.5 C 16 21.5 14.5 24.5 15.5 27.5 C 16.5 30.5 20.5 31.5 23 32.5 C 26.5 34 28.5 36.5 27.5 40 C 26.5 43 22.5 44.5 19 44 C 16.5 43.5 15 42.2 14.2 40.8"
-          stroke="#0F172A" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" />
-    <!-- Letter P (Rich Amber Gold) -->
-    <path d="M 35.5 44 L 35.5 20.5 L 43 20.5 C 47.5 20.5 50 23.2 50 27.2 C 50 31.2 47.5 34 43 34 L 35.5 34"
+
+    <!-- Squircle Base -->
+    <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#sp-light-bg)" stroke="url(#sp-light-rim)" stroke-width="2.2" />
+    <rect x="5.5" y="5.5" width="53" height="53" rx="13" stroke="#F59E0B" stroke-opacity="0.16" stroke-width="1" />
+
+    <!-- Merged S-curve flowing into the shared central spine -->
+    <path d="M 32 18 H 23 C 18.6 18 16 20.6 16 24.5 C 16 28.4 18.8 30.8 23.5 31.8 L 28.5 32.8 C 31.2 33.4 32 35 32 38.5 C 32 43 28.8 46 23.5 46 H 16.5"
+          stroke="url(#sp-light-s)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Interlocking P rising from the shared spine and looping into a portal bowl -->
+    <path d="M 32 46 V 18 H 40.5 C 45.2 18 48.5 21.1 48.5 25.5 C 48.5 29.9 45.2 33 40.5 33 H 32"
           stroke="url(#sp-light-p)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" />
-    <!-- Accent Dot -->
-    <circle cx="48" cy="43" r="2.6" fill="#F59E0B" />
+
+    <!-- Portal Core / Coin Glint inside P's bowl -->
+    <circle cx="40.2" cy="25.5" r="2.7" fill="#D97706" />
 </svg>

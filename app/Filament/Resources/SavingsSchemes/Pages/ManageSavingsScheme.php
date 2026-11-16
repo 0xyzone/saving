@@ -36,6 +36,7 @@ class ManageSavingsScheme extends Page
     public function mount(int|string|SavingsScheme $record): void
     {
         $this->record = $record instanceof SavingsScheme ? $record : $this->resolveRecord($record);
+        abort_unless(SavingsSchemeResource::canView($this->record), 403);
         $this->record->load([
             'organizer',
             'seats.user',

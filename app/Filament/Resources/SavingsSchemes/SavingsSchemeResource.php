@@ -9,10 +9,12 @@ use App\Filament\Resources\SavingsSchemes\Schemas\SavingsSchemeForm;
 use App\Filament\Resources\SavingsSchemes\Tables\SavingsSchemesTable;
 use App\Models\SavingsScheme;
 use BackedEnum;
+use BezhanSalleh\FilamentShield\Support\Utils;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class SavingsSchemeResource extends Resource
@@ -47,6 +49,19 @@ class SavingsSchemeResource extends Resource
             'ManageInstallments:SavingsScheme' => 'Allows recording payments, verifying proofs, and marking member installments as paid.',
             'ManageSeats:SavingsScheme' => 'Allows manual allocation of available seats to members.',
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = auth()->user();
+
+        if ($user && ! $user->hasRole(Utils::getSuperAdminName())) {
+            $query->where('organizer_id', $user->id);
+        }
+
+        return $query;
     }
 
     public static function form(Schema $schema): Schema

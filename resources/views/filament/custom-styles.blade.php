@@ -15,6 +15,25 @@
         appearance: textfield;
     }
 
+    /* Brand Lockup Alignment in Sidebar & Topbar */
+    .fi-sidebar-header .fi-logo,
+    .fi-topbar .fi-logo {
+        height: auto !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        white-space: nowrap !important;
+        max-width: 100%;
+    }
+
+    .fi-sidebar-header {
+        gap: 0.5rem !important;
+    }
+
+    .fi-sidebar-collapsed .sp-brand-title,
+    .fi-sidebar-collapsed .sp-brand-version {
+        display: none !important;
+    }
+
     /* Clean Card Layout Styling for Grid View */
     .fi-ta-content-grid {
         gap: 1rem !important;

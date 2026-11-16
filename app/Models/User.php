@@ -102,6 +102,14 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     }
 
     /**
+     * @return HasMany<SavingsScheme, covariant $this>
+     */
+    public function organizedSchemes(): HasMany
+    {
+        return $this->hasMany(SavingsScheme::class, 'organizer_id');
+    }
+
+    /**
      * Determine if the user can impersonate other users.
      */
     public function canImpersonate(): bool
