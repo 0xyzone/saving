@@ -11,11 +11,11 @@ class ChangelogTest extends TestCase
     {
         $version = ChangelogService::getCurrentVersion();
         $this->assertNotEmpty($version);
-        $this->assertEquals('1.3.0', $version);
+        $this->assertEquals('1.3.1', $version);
 
         $releases = ChangelogService::getReleases();
         $this->assertNotEmpty($releases);
-        $this->assertEquals('1.3.0', $releases[0]['version']);
+        $this->assertEquals('1.3.1', $releases[0]['version']);
         $this->assertArrayHasKey('html', $releases[0]);
     }
 
@@ -24,7 +24,9 @@ class ChangelogTest extends TestCase
         $response = $this->get('/changelog');
 
         $response->assertStatus(200);
-        $response->assertSee('v1.3.0');
+        $response->assertSee('v1.3.1');
+        $response->assertSee('logo-dark.svg');
+        $response->assertSee('favicon-');
         $response->assertSee('System Evolution');
         $response->assertSee('CHANGELOG.md');
     }

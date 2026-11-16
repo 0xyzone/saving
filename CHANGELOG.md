@@ -5,6 +5,13 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-11-16
+
+### Added
+- **Custom SP Brand Logos & Environment-Aware Favicons**:
+  - Designed custom `SP` monogram vector logos for both light mode (`public/images/logo-light.svg`) and dark mode (`public/images/logo-dark.svg`), integrated across the Filament panel header, login screen, and changelog page.
+  - Created distinct environment-aware favicons: Amber/Gold `SP` (`public/images/favicon-prod.svg`) for production and Cyan/Blue `SP` with a green corner indicator (`public/images/favicon-local.svg`) for local development (`app()->isLocal()`), plus a fallback `public/favicon.ico`.
+
 ## [1.3.0] - 2026-11-12
 
 ### Added

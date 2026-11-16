@@ -37,6 +37,7 @@ class PanelPanelProvider extends PanelProvider
             ->login(Login::class)
             ->brandName('Saving Portal')
             ->brandLogo(fn () => view('filament.brand'))
+            ->favicon(app()->isLocal() ? asset('images/favicon-local.svg') : asset('images/favicon-prod.svg'))
             ->maxContentWidth(Width::Full)
             ->sidebarCollapsibleOnDesktop()
             ->colors([

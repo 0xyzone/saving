@@ -134,6 +134,18 @@
         margin-bottom: 1.25rem !important;
     }
 
+    .fi-simple-header .fi-logo .sp-logo-light {
+        display: none !important;
+    }
+
+    .fi-simple-header .fi-logo .sp-logo-dark {
+        display: block !important;
+    }
+
+    .fi-simple-header .fi-logo .sp-brand-title {
+        color: #f59e0b !important;
+    }
+
     .fi-simple-header-heading {
         font-size: 1.5rem !important;
         font-weight: 800 !important;

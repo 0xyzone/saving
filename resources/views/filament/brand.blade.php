@@ -1,5 +1,9 @@
 <div class="flex items-center gap-2.5">
-    <span class="text-base font-bold tracking-tight text-amber-950 dark:text-amber-500">
+    <img src="{{ asset('images/logo-light.svg') }}" alt="Saving Portal"
+        class="sp-logo-light h-8 w-8 shrink-0 dark:hidden" />
+    <img src="{{ asset('images/logo-dark.svg') }}" alt="Saving Portal"
+        class="sp-logo-dark hidden h-8 w-8 shrink-0 dark:block" />
+    <span class="sp-brand-title text-base font-bold tracking-tight text-amber-950 dark:text-amber-500">
         Saving Portal
     </span>
     <a href="{{ url('/changelog') }}" title="View Changelog"

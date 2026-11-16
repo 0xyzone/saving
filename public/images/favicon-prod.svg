@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+    <defs>
+        <linearGradient id="fav-prod-bg" x1="2" y1="2" x2="62" y2="62" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#F59E0B" />
+            <stop offset="100%" stop-color="#B45309" />
+        </linearGradient>
+    </defs>
+    <!-- Solid Amber Gold Squircle for high-visibility Production tab -->
+    <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#fav-prod-bg)" />
+    <!-- Letter S -->
+    <path d="M 27.5 22.5 C 26 20 22.5 19.5 19.5 20.5 C 16 21.5 14.5 24.5 15.5 27.5 C 16.5 30.5 20.5 31.5 23 32.5 C 26.5 34 28.5 36.5 27.5 40 C 26.5 43 22.5 44.5 19 44 C 16.5 43.5 15 42.2 14.2 40.8"
+          stroke="#FFFFFF" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Letter P -->
+    <path d="M 35.5 44 L 35.5 20.5 L 43 20.5 C 47.5 20.5 50 23.2 50 27.2 C 50 31.2 47.5 34 43 34 L 35.5 34"
+          stroke="#0F172A" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

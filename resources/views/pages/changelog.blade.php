@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Changelog & Release Notes | Saving Portal</title>
+    <link rel="icon" type="image/svg+xml" href="{{ app()->isLocal() ? asset('images/favicon-local.svg') : asset('images/favicon-prod.svg') }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,9 +44,7 @@
     <header class="sticky top-0 z-50 backdrop-blur-md bg-slate-950/80 border-b border-slate-800/80">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <a href="/" class="flex items-center gap-2.5 font-bold text-lg text-white hover:opacity-90 transition group">
-                <span class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center text-white shadow-md shadow-amber-500/20 font-mono text-sm">
-                    S
-                </span>
+                <img src="{{ asset('images/logo-dark.svg') }}" alt="Saving Portal" class="w-8 h-8 shrink-0">
                 <span>Saving Portal</span>
                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/25">
                     <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"></span>
