@@ -103,6 +103,14 @@ class SavingsSchemeResourceTest extends TestCase
         // Period 2 payout: 5 * 10,000 = 50,000 gross. Minus seat 2 (10,000). Minus khaja kharcha (1,000) = 39,000.
         $this->assertEquals(39000.00, $period2->net_payout_amount);
         $this->assertEquals(3, $scheme->current_period);
+
+        // Period 3 is now active: assert that Seat #2 is NO LONGER available in the declare_winner dropdown
+        $component->refresh();
+        $declaredPeriodWinningSeatIds = $scheme->periods()
+            ->whereNotNull('winning_seat_id')
+            ->pluck('winning_seat_id')
+            ->all();
+        $this->assertContains($seat2->id, $declaredPeriodWinningSeatIds);
     }
 
     public function test_non_organizer_cannot_access_savings_schemes(): void
