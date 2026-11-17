@@ -71,6 +71,42 @@
         padding-inline-end: 0.875rem !important;
     }
 
+    /* Consistent Styling for Custom Modal Inputs, Selects & Textareas */
+    .sp-custom-modal input:not([type="checkbox"]):not([type="radio"]),
+    .sp-custom-modal select,
+    .sp-custom-modal textarea {
+        width: 100%;
+        padding: 0.625rem 0.875rem !important;
+        font-size: 0.875rem !important;
+        line-height: 1.5 !important;
+        border-radius: 0.75rem !important;
+        border: 1px solid rgba(148, 163, 184, 0.4) !important;
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+    }
+
+    .sp-custom-modal input:not([type="checkbox"]):not([type="radio"]),
+    .sp-custom-modal select {
+        min-height: 2.75rem !important;
+    }
+
+    .dark .sp-custom-modal input:not([type="checkbox"]):not([type="radio"]),
+    .dark .sp-custom-modal select,
+    .dark .sp-custom-modal textarea {
+        border-color: rgba(255, 255, 255, 0.12) !important;
+        background-color: rgba(30, 41, 59, 0.8) !important;
+        color: #f8fafc !important;
+    }
+
+    .sp-custom-modal input:focus,
+    .sp-custom-modal select:focus,
+    .sp-custom-modal textarea:focus {
+        outline: none !important;
+        border-color: #f59e0b !important;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2) !important;
+    }
+
     /* Brand Lockup Alignment in Sidebar & Topbar */
     .fi-sidebar-header .fi-logo,
     .fi-topbar .fi-logo {
