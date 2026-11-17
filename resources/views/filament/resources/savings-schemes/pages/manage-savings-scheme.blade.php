@@ -334,11 +334,15 @@
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         @php
                             $groupedInstallments = $installments->groupBy('user_id');
+                            $activePeriodWinnerUserId = $activePeriod?->winner_user_id
+                                ?? ($activePeriod?->period_number === 1 ? $record->organizer_id : null)
+                                ?? $activePeriod?->reservations->firstWhere('status', 'approved')?->user_id;
                         @endphp
                         @forelse ($groupedInstallments as $userId => $userInstallments)
                             @php
                                 $firstInst = $userInstallments->first();
                                 $member = $firstInst?->user;
+                                $isRoundWinner = $activePeriodWinnerUserId !== null && (int) $userId === (int) $activePeriodWinnerUserId;
                                 $seatNumbers = $userInstallments->map(fn ($i) => '#' . ($i->seat?->seat_number ?? '?'))->implode(', ');
                                 $hasOrgSeat = $userInstallments->contains(fn ($i) => $i->seat?->seat_number === 1);
                                 $baseSum = (float) $userInstallments->sum('base_amount');
@@ -403,7 +407,9 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    @if ($remainingSum > 0 && ! $allAutoSettled && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
+                                    @if ($isRoundWinner)
+                                        <span class="text-xs text-blue-500 font-medium">Winner (Auto-Deducted)</span>
+                                    @elseif ($remainingSum > 0 && ! $allAutoSettled && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
                                         <button type="button" wire:click="promptUserInstallmentPayment({{ $userId }}, {{ $selectedPeriodId }})"
                                             class="px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-500 transition">
                                             {{ $isPartial ? 'Add Settlement' : 'Record Payment' }}
@@ -607,46 +613,76 @@
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                        @forelse ($viewPeriod->installments as $inst)
+                                        @php
+                                            $viewGroupedInstallments = $viewPeriod->installments->groupBy('user_id');
+                                            $viewPeriodWinnerUserId = $viewPeriod->winner_user_id
+                                                ?? ($viewPeriod->period_number === 1 ? $record->organizer_id : null)
+                                                ?? $viewPeriod->reservations->firstWhere('status', 'approved')?->user_id;
+                                        @endphp
+                                        @forelse ($viewGroupedInstallments as $userId => $userInsts)
+                                            @php
+                                                $firstInst = $userInsts->first();
+                                                $member = $firstInst?->user;
+                                                $isViewWinner = $viewPeriodWinnerUserId !== null && (int) $userId === (int) $viewPeriodWinnerUserId;
+                                                $seatNumbers = $userInsts->map(fn ($i) => '#' . ($i->seat?->seat_number ?? '?'))->implode(', ');
+                                                $baseSum = (float) $userInsts->sum('base_amount');
+                                                $interestSum = (float) $userInsts->sum('interest_amount');
+                                                $totalDueSum = (float) $userInsts->sum('total_due');
+                                                $paidSum = (float) $userInsts->sum(fn ($i) => in_array($i->status, ['paid', 'auto_settled_winner'], true) ? ((float) $i->paid_amount > 0 ? (float) $i->paid_amount : (float) $i->total_due) : (float) $i->paid_amount);
+                                                $remainingSum = max(0.0, $totalDueSum - $paidSum);
+                                                $allAutoSettled = $userInsts->every(fn ($i) => $i->status === 'auto_settled_winner');
+                                                $allPaid = $userInsts->every(fn ($i) => $i->status === 'paid') || ($remainingSum <= 0 && ! $allAutoSettled);
+                                                $isPartial = ! $allPaid && ! $allAutoSettled && $paidSum > 0;
+                                                $methods = $userInsts->pluck('payment_method')->filter()->unique()->implode(', ');
+                                            @endphp
                                             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                                                 <td class="px-3 py-2.5 font-semibold text-slate-900 dark:text-white">
-                                                    Seat #{{ $inst->seat?->seat_number }}
+                                                    Seat {{ $seatNumbers }}
                                                 </td>
                                                 <td class="px-3 py-2.5">
-                                                    {{ $inst->user?->name ?? 'Unassigned' }}
+                                                    {{ $member?->name ?? 'Unassigned' }}
                                                 </td>
                                                 <td class="px-3 py-2.5 text-right font-mono">
-                                                    Rs. {{ number_format((float) $inst->base_amount, 2) }}
+                                                    Rs. {{ number_format($baseSum, 2) }}
                                                 </td>
                                                 <td class="px-3 py-2.5 text-right font-mono text-amber-600">
-                                                    {{ $inst->interest_amount > 0 ? '+Rs. ' . number_format((float) $inst->interest_amount, 2) : '-' }}
+                                                    {{ $interestSum > 0 ? '+Rs. ' . number_format($interestSum, 2) : '-' }}
                                                 </td>
                                                 <td class="px-3 py-2.5 text-right font-mono font-bold text-slate-900 dark:text-white">
-                                                    Rs. {{ number_format((float) $inst->total_due, 2) }}
+                                                    <div>Rs. {{ number_format($totalDueSum, 2) }}</div>
+                                                    @if ($isPartial)
+                                                        <div class="text-[10px] font-normal text-sky-600 dark:text-sky-400">
+                                                            Paid: Rs. {{ number_format($paidSum, 2) }} · Bal: Rs. {{ number_format($remainingSum, 2) }}
+                                                        </div>
+                                                    @endif
                                                 </td>
                                                 <td class="px-3 py-2.5 text-center">
-                                                    @if ($inst->status === 'paid')
+                                                    @if ($allPaid)
                                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600">Paid</span>
-                                                    @elseif ($inst->status === 'auto_settled_winner')
+                                                    @elseif ($allAutoSettled)
                                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-600">Auto-Settled</span>
+                                                    @elseif ($isPartial)
+                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/10 text-sky-600">Partial</span>
                                                     @else
                                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600">Pending</span>
                                                     @endif
                                                 </td>
                                                 <td class="px-3 py-2.5 text-center">
-                                                    @if ($inst->payment_method)
+                                                    @if ($methods)
                                                         <span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium">
-                                                            {{ $inst->payment_method }}
+                                                            {{ $methods }}
                                                         </span>
                                                     @else
                                                         <span class="text-slate-400">-</span>
                                                     @endif
                                                 </td>
                                                 <td class="px-3 py-2.5 text-right">
-                                                    @if ($inst->status === 'pending' && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
-                                                        <button type="button" wire:click="promptMarkInstallmentPaid({{ $inst->id }})"
+                                                    @if ($isViewWinner)
+                                                        <span class="text-blue-500 text-[10px] font-medium">Winner (Auto-Deducted)</span>
+                                                    @elseif ($remainingSum > 0 && ! $allAutoSettled && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
+                                                        <button type="button" wire:click="promptUserInstallmentPayment({{ $userId }}, {{ $viewPeriod->id }})"
                                                             class="px-2 py-0.5 text-[11px] font-semibold rounded bg-emerald-600 text-white hover:bg-emerald-500">
-                                                            Settle
+                                                            {{ $isPartial ? '+ Settle' : 'Settle' }}
                                                         </button>
                                                     @else
                                                         <span class="text-slate-400 text-[10px]">Settled</span>
