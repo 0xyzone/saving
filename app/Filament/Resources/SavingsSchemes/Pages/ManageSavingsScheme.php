@@ -793,6 +793,35 @@ class ManageSavingsScheme extends Page
         $this->viewPeriodId = null;
     }
 
+    public function refreshPeriodInstallments(?int $periodId = null): void
+    {
+        $service = app(SavingsSchemeService::class);
+
+        if ($periodId !== null) {
+            $period = $this->record->periods()->find($periodId);
+            if ($period) {
+                $service->generatePeriodInstallments($this->record, $period);
+                Notification::make()
+                    ->title("Round #{$period->period_number} Installments Refreshed")
+                    ->body('Missing installment records have been loaded.')
+                    ->success()
+                    ->send();
+            }
+        } else {
+            $service->ensurePeriodsMatchSeats($this->record);
+            foreach ($this->record->periods as $p) {
+                $service->generatePeriodInstallments($this->record, $p);
+            }
+            Notification::make()
+                ->title('All Round Installments Refreshed')
+                ->body('All missing round and installment records have been loaded.')
+                ->success()
+                ->send();
+        }
+
+        $this->record->refresh();
+    }
+
     public function promptUserInstallmentPayment(int $userId, int $periodId): void
     {
         $installments = SchemeInstallment::query()

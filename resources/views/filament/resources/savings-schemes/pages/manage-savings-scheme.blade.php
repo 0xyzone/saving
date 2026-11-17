@@ -57,6 +57,18 @@
 
         {{-- TAB 1: Periods & Winners --}}
         <div x-show="activeTab === 'periods'" class="space-y-3">
+            <div class="flex items-center justify-between pb-1">
+                <div class="text-xs text-slate-500">
+                    Track rounds, declared winners, reservations, and member settlements.
+                </div>
+                <button type="button" wire:click="refreshPeriodInstallments" wire:loading.attr="disabled"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition shadow-sm border border-slate-200 dark:border-slate-700"
+                    title="Scan all rounds and generate any missing installment records">
+                    <svg wire:loading.remove wire:target="refreshPeriodInstallments" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <svg wire:loading wire:target="refreshPeriodInstallments" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                    <span>Refresh Installments</span>
+                </button>
+            </div>
             {{-- Mobile Card View --}}
             <div class="sp-mobile-only space-y-3">
                 @foreach ($record->periods as $period)
@@ -373,14 +385,26 @@
         {{-- TAB 3: Installment Collections --}}
         <div x-show="activeTab === 'installments'" class="space-y-4">
             {{-- Period Picker Bar --}}
-            <div class="flex flex-wrap items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-                <span class="text-xs font-semibold uppercase text-slate-500 px-2">Select Period:</span>
-                @foreach ($record->periods as $p)
-                    <button type="button" wire:click="setSelectedPeriod({{ $p->id }})"
-                        class="px-2.5 py-1 text-xs rounded-lg font-medium transition {{ $selectedPeriodId === $p->id ? 'bg-amber-500 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100' }}">
-                        Period #{{ $p->period_number }} ({{ $p->formatted_due_date_bs }})
+            <div class="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold uppercase text-slate-500 px-2">Select Period:</span>
+                    @foreach ($record->periods as $p)
+                        <button type="button" wire:click="setSelectedPeriod({{ $p->id }})"
+                            class="px-2.5 py-1 text-xs rounded-lg font-medium transition {{ $selectedPeriodId === $p->id ? 'bg-amber-500 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100' }}">
+                            Period #{{ $p->period_number }} ({{ $p->formatted_due_date_bs }})
+                        </button>
+                    @endforeach
+                </div>
+
+                @if ($selectedPeriodId)
+                    <button type="button" wire:click="refreshPeriodInstallments({{ $selectedPeriodId }})" wire:loading.attr="disabled"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition shadow-sm border border-slate-200 dark:border-slate-700 shrink-0 ml-auto"
+                        title="Reload missing installment records for this round">
+                        <svg wire:loading.remove wire:target="refreshPeriodInstallments" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <svg wire:loading wire:target="refreshPeriodInstallments" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span>Refresh Records</span>
                     </button>
-                @endforeach
+                @endif
             </div>
 
             {{-- Installments Table --}}
@@ -536,6 +560,14 @@
                         </div>
 
                         <div class="flex items-center flex-wrap gap-2">
+                            <button type="button" wire:click="refreshPeriodInstallments({{ $viewPeriod->id }})" wire:loading.attr="disabled"
+                                class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition flex items-center gap-1.5 shadow-sm border border-slate-200 dark:border-slate-700"
+                                title="Refresh and load any missing installment records for Round #{{ $viewPeriod->period_number }}">
+                                <svg wire:loading.remove wire:target="refreshPeriodInstallments" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                <svg wire:loading wire:target="refreshPeriodInstallments" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                <span>Refresh</span>
+                            </button>
+
                             @if ($viewPeriod->period_number > 1 && $viewPeriod->status !== 'completed')
                                 <button type="button" wire:click="openReserveModal({{ $viewPeriod->id }})"
                                     class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition flex items-center gap-1.5 shadow-sm">

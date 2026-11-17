@@ -366,5 +366,16 @@ class SavingsSchemeResourceTest extends TestCase
         $this->assertEquals(10000.00, (float) $period1->paid_amount); // 3 * 5k - 5k own seat
         $this->assertEquals(2, $scheme->current_period);
         $this->assertEquals('in_progress', $scheme->periods()->where('period_number', 2)->first()->status);
+
+        // 3. Test refreshPeriodInstallments loads any missing installment records
+        $period2 = $scheme->periods()->where('period_number', 2)->first();
+        // Artificially delete one installment to simulate a missed record
+        $period2->installments()->first()?->delete();
+        $this->assertCount(2, $period2->fresh()->installments);
+
+        $component->call('refreshPeriodInstallments', $period2->id)
+            ->assertNotified("Round #{$period2->period_number} Installments Refreshed");
+
+        $this->assertCount(3, $period2->fresh()->installments);
     }
 }
