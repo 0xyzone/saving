@@ -152,15 +152,15 @@
 
     /* Responsive Table/Card Visibility Helpers */
     .sp-mobile-only {
-        display: none;
+        display: none !important;
     }
 
     .sp-desktop-only {
-        display: block;
+        display: block !important;
     }
 
     /* Mobile Screen Enhancements */
-    @media (max-width: 768px) {
+    @media (max-width: 767px) {
         .sp-mobile-only {
             display: block !important;
         }
