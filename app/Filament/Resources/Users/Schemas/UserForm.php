@@ -76,16 +76,6 @@ class UserForm
                             ->required(fn (string $operation): bool => $operation === 'create')
                             ->maxLength(255),
 
-                        FileUpload::make('avatar_url')
-                            ->label('Filament Avatar')
-                            ->image()
-                            ->disk('public')
-                            ->visibility('public')
-                            ->directory('avatars')
-                            ->avatar()
-                            ->imageEditor()
-                            ->nullable(),
-
                         Textarea::make('home_address')
                             ->label('Home Address')
                             ->nullable()
@@ -132,7 +122,22 @@ class UserForm
 
                                 Toggle::make('is_preferred')
                                     ->label('Preferred')
-                                    ->default(false),
+                                    ->default(false)
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $get, callable $set, $component): void {
+                                        if (! $state) {
+                                            return;
+                                        }
+
+                                        $items = $get('../../paymentOptions') ?? [];
+                                        $currentPath = $component->getStatePath();
+                                        foreach ($items as $key => $item) {
+                                            if (! str_contains($currentPath, ".{$key}.")) {
+                                                $items[$key]['is_preferred'] = false;
+                                            }
+                                        }
+                                        $set('../../paymentOptions', $items);
+                                    }),
 
                                 Toggle::make('is_active')
                                     ->label('Active')

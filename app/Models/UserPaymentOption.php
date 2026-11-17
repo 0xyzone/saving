@@ -31,6 +31,18 @@ class UserPaymentOption extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(function (UserPaymentOption $option): void {
+            if ($option->is_preferred && $option->user_id) {
+                static::query()
+                    ->where('user_id', $option->user_id)
+                    ->when($option->exists, fn ($query) => $query->where('id', '!=', $option->id))
+                    ->update(['is_preferred' => false]);
+            }
+        });
+    }
+
     /**
      * @return BelongsTo<User, covariant $this>
      */

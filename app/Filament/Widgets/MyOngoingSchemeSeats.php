@@ -125,8 +125,8 @@ class MyOngoingSchemeSeats extends TableWidget
                                 TextColumn::make('win_status')
                                     ->badge()
                                     ->state(fn (SchemeSeat $record): string => $record->won_at_period
-                                        ? "Won Round #{$record->won_at_period}"
-                                        : 'Eligible to Win')
+                                        ? "Disbursed Rd #{$record->won_at_period}"
+                                        : 'Active Turn')
                                     ->color(fn (SchemeSeat $record): string => $record->won_at_period ? 'success' : 'gray')
                                     ->grow(false),
                             ])->extraAttributes(['class' => 'items-center justify-between gap-2']),
@@ -134,6 +134,7 @@ class MyOngoingSchemeSeats extends TableWidget
                     ]),
                 ])->space(3),
             ])
+            ->extraAttributes(['id' => 'my-ongoing-schemes-section'])
             ->contentGrid([
                 'default' => 1,
                 'md' => 2,

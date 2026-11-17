@@ -87,6 +87,7 @@ class MyInstallmentHistory extends TableWidget
                     ]),
                 ])->space(2),
             ])
+            ->extraAttributes(['id' => 'my-installment-ledger-section'])
             ->contentGrid([
                 'default' => 1,
                 'md' => 2,

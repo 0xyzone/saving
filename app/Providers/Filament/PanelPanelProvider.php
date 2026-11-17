@@ -84,11 +84,7 @@ class PanelPanelProvider extends PanelProvider
                     ->setNavigationGroup('Settings')
                     ->setIcon('heroicon-o-user')
                     ->setSort(10)
-                    ->shouldShowAvatarForm(
-                        value: true,
-                        directory: 'avatars',
-                        rules: 'mimes:jpeg,png,jpg|max:2048'
-                    )
+                    ->shouldShowAvatarForm(value: false)
                     ->shouldShowBrowserSessionsForm()
                     ->customProfileComponents([
                         EditContactAndAddress::class,

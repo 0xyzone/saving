@@ -41,7 +41,7 @@
             <button type="button" @click="activeTab = 'periods'"
                 :class="activeTab === 'periods' ? 'bg-primary-50 text-primary-600 dark:bg-primary-950/40 dark:text-primary-400 font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
                 class="px-3 py-1.5 text-sm rounded-lg transition">
-                Periods & Winners ({{ $record->periods->count() }})
+                Periods & Disbursements ({{ $record->periods->count() }})
             </button>
             <button type="button" @click="activeTab = 'seats'"
                 :class="activeTab === 'seats' ? 'bg-primary-50 text-primary-600 dark:bg-primary-950/40 dark:text-primary-400 font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
@@ -147,7 +147,7 @@
                         <tr>
                             <th class="px-3 py-3 whitespace-nowrap">Round</th>
                             <th class="px-3 py-3 whitespace-nowrap">Due Date (BS)</th>
-                            <th class="px-3 py-3 whitespace-nowrap">Winner</th>
+                            <th class="px-3 py-3 whitespace-nowrap">Recipient</th>
                             <th class="px-3 py-3 whitespace-nowrap">Reservation</th>
                             <th class="px-3 py-3 text-right whitespace-nowrap">Gross Pool</th>
                             <th class="px-3 py-3 text-right whitespace-nowrap">Maslanda</th>
@@ -697,7 +697,7 @@
                                             @elseif ($viewPeriod->period_number === 1)
                                                 {{ $record->organizer?->name ?? 'Organizer' }} (Seat #1 · Reserved)
                                             @else
-                                                <span class="text-slate-400 italic">Winner Not Declared Yet</span>
+                                                <span class="text-slate-400 italic">Recipient Not Assigned Yet</span>
                                             @endif
                                         </div>
                                         <div class="text-xs text-slate-500">
@@ -723,6 +723,44 @@
                                     @endif
                                 </div>
                             </div>
+
+                            @php
+                                $recipientUser = $viewPeriod->winnerUser ?? ($viewPeriod->period_number === 1 ? $record->organizer : null);
+                                $recipientPayment = $recipientUser?->paymentOptions
+                                    ?->where('is_active', true)
+                                    ->sortByDesc('is_preferred')
+                                    ->first();
+                            @endphp
+
+                            @if ($recipientPayment)
+                                <div class="pt-3 border-t border-slate-200 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                    <div class="space-y-0.5">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="font-semibold text-slate-700 dark:text-slate-200">
+                                                {{ $recipientPayment->is_preferred ? 'Preferred Payment Method' : 'Active Payment Method' }}:
+                                            </span>
+                                            <span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold uppercase text-[10px]">
+                                                {{ $recipientPayment->type }}
+                                            </span>
+                                        </div>
+                                        <div class="text-slate-600 dark:text-slate-300">
+                                            <strong>{{ $recipientPayment->provider_name ?: ucfirst($recipientPayment->type) }}</strong>
+                                            &mdash; <span class="font-mono">{{ $recipientPayment->account_number }}</span>
+                                        </div>
+                                    </div>
+
+                                    @if (filled($recipientPayment->qr_code_image))
+                                        <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($recipientPayment->qr_code_image) }}"
+                                            target="_blank" rel="noopener noreferrer"
+                                            class="inline-flex items-center gap-2 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-amber-500 transition"
+                                            title="Click to view full QR code">
+                                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($recipientPayment->qr_code_image) }}"
+                                                alt="Payment QR Code" class="h-14 w-14 rounded object-contain bg-white" />
+                                            <span class="text-[11px] font-medium text-amber-600 dark:text-amber-400 pr-1">View QR</span>
+                                        </a>
+                                    @endif
+                                </div>
+                            @endif
 
                             @if ($viewPeriod->payout_method || $viewPeriod->payout_reference || $viewPeriod->paid_at)
                                 <div class="pt-2 border-t border-slate-200 dark:border-slate-700/60 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">

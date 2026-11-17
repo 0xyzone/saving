@@ -1,14 +1,14 @@
 <x-filament-widgets::widget>
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {{-- My Won Rounds & Payouts --}}
+    <div id="my-disbursed-rounds-section" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {{-- My Disbursed Rounds & Payouts --}}
         <x-filament::section>
             <x-slot name="heading">
-                My Won Rounds &amp; Payouts
+                My Disbursed Rounds &amp; Payouts
             </x-slot>
 
             @if ($winnings->isEmpty())
                 <div class="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-white/10 dark:text-gray-400">
-                    You have not won any rounds in your ongoing schemes yet.
+                    You have not received a round disbursement in your ongoing schemes yet.
                 </div>
             @else
                 <div class="space-y-3">
@@ -37,7 +37,7 @@
 
                             <div class="mt-3 grid grid-cols-3 gap-2 border-t border-gray-100 pt-3 text-xs dark:border-white/10">
                                 <div>
-                                    <span class="text-gray-500 dark:text-gray-400">Net Prize</span>
+                                    <span class="text-gray-500 dark:text-gray-400">Net Disbursement</span>
                                     <p class="font-semibold text-gray-900 dark:text-white">
                                         Rs. {{ number_format((float) $period->net_payout_amount, 2) }}
                                     </p>

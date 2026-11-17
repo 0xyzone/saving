@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
         if ($organizer && SavingsScheme::count() === 0) {
             $scheme = SavingsScheme::create([
                 'title' => '20-Month Gold Savings Committee (Demo)',
-                'description' => 'Periodical committee scheme with 20 seats, Rs. 10,000 monthly installments, Rs. 500 fixed interest on past winners, and Rs. 1,000 Khaja Kharcha.',
+                'description' => 'Group cooperative savings scheme with 20 seats, Rs. 10,000 monthly contributions, Rs. 500 fixed interest on past recipients, and Rs. 2,000 Maslanda Deposit.',
                 'organizer_id' => $organizer->id,
                 'total_seats' => 20,
                 'total_periods' => 20,

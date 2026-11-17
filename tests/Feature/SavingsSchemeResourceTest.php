@@ -73,7 +73,7 @@ class SavingsSchemeResourceTest extends TestCase
         $response->assertStatus(200);
         $response->assertSeeText('Feature Test Scheme');
         $response->assertSeeText('Installment Per Seat');
-        $response->assertSeeText('Periods & Winners');
+        $response->assertSeeText('Periods & Disbursements');
 
         // Test Livewire component
         $component = Livewire::test(ManageSavingsScheme::class, ['record' => $scheme]);

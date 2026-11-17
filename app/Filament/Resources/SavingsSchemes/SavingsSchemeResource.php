@@ -34,10 +34,15 @@ class SavingsSchemeResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canCreate();
+    }
+
     public static function getShieldResourcePermissions(): array
     {
         return [
-            'DeclareWinner' => 'Declare round winners and compute payouts',
+            'DeclareWinner' => 'Assign round recipients and compute disbursements',
             'ManageInstallments' => 'Record and verify installment collections',
             'ManageSeats' => 'Assign and manage member seats',
         ];
@@ -46,7 +51,7 @@ class SavingsSchemeResource extends Resource
     public static function getShieldPermissionDescriptions(): array
     {
         return [
-            'DeclareWinner:SavingsScheme' => 'Allows selecting the period winner, auto-settling seat dues, and issuing net prize payouts.',
+            'DeclareWinner:SavingsScheme' => 'Allows selecting the period recipient, auto-settling seat dues, and issuing net disbursements.',
             'ManageInstallments:SavingsScheme' => 'Allows recording payments, verifying proofs, and marking member installments as paid.',
             'ManageSeats:SavingsScheme' => 'Allows manual allocation of available seats to members.',
         ];

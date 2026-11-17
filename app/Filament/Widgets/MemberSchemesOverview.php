@@ -42,9 +42,15 @@ class MemberSchemesOverview extends StatsOverviewWidget
             ->get()
             ->filter(fn (SchemeInstallment $installment): bool => $installment->period?->period_number === $installment->scheme?->current_period);
 
-        $currentPendingAmount = (float) $currentPeriodInstallments->where('status', 'pending')->sum('total_due');
-        $currentPendingCount = $currentPeriodInstallments->where('status', 'pending')->count();
+        $currentPendingInstallments = $currentPeriodInstallments->where('status', 'pending');
+        $currentPendingAmount = (float) $currentPendingInstallments->sum('total_due');
+        $currentPendingCount = $currentPendingInstallments->count();
         $currentPaidCount = $currentPeriodInstallments->where('status', 'paid')->count();
+        $pendingSchemeTitles = $currentPendingInstallments
+            ->map(fn (SchemeInstallment $inst): ?string => $inst->scheme ? "{$inst->scheme->title} (Rd #{$inst->period?->period_number})" : null)
+            ->filter()
+            ->unique()
+            ->values();
 
         $paidInstallmentsQuery = SchemeInstallment::query()
             ->where('user_id', $userId)
@@ -61,28 +67,32 @@ class MemberSchemesOverview extends StatsOverviewWidget
 
         $schemeLabel = $distinctSchemes === 1 ? 'scheme' : 'schemes';
         $duesDescription = $currentPendingCount > 0
-            ? "{$currentPendingCount} pending, {$currentPaidCount} paid this period"
+            ? 'Pending: '.$pendingSchemeTitles->implode(', ')
             : ($currentPaidCount > 0 ? "All {$currentPaidCount} paid for current period" : 'No dues generated yet');
 
         return [
             Stat::make('My Active Seats', $totalSeats)
                 ->description("Across {$distinctSchemes} ongoing {$schemeLabel}")
                 ->descriptionIcon('heroicon-m-ticket')
+                ->url('#my-ongoing-schemes-section')
                 ->color('primary'),
 
             Stat::make('Current Period Dues', 'Rs. '.number_format($currentPendingAmount, 2))
                 ->description($duesDescription)
                 ->descriptionIcon($currentPendingCount > 0 ? 'heroicon-m-clock' : 'heroicon-m-check-circle')
+                ->url('#my-ongoing-schemes-section')
                 ->color($currentPendingCount > 0 ? 'warning' : 'success'),
 
             Stat::make('Total Contributed', 'Rs. '.number_format($totalContributed, 2))
                 ->description("Across {$totalPaidCount} paid installments")
                 ->descriptionIcon('heroicon-m-banknotes')
+                ->url('#my-installment-ledger-section')
                 ->color('success'),
 
-            Stat::make('Won Rounds', $wonSeatsCount)
-                ->description('Rs. '.number_format($totalPayoutReceived, 2).' payout received')
-                ->descriptionIcon('heroicon-m-trophy')
+            Stat::make('Disbursed Rounds', $wonSeatsCount)
+                ->description('Rs. '.number_format($totalPayoutReceived, 2).' disbursement received')
+                ->descriptionIcon('heroicon-m-banknotes')
+                ->url('#my-disbursed-rounds-section')
                 ->color('info'),
         ];
     }

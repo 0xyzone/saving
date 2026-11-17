@@ -40,6 +40,11 @@ class ManageSavingsScheme extends Page
         $this->record = $record instanceof SavingsScheme ? $record : $this->resolveRecord($record);
         abort_unless(SavingsSchemeResource::canView($this->record), 403);
         $this->refreshSchemeRecord();
+        $this->record->loadMissing([
+            'organizer.paymentOptions',
+            'periods.winningSeat.user.paymentOptions',
+            'periods.winnerUser.paymentOptions',
+        ]);
 
         // Auto initialize seats and periods if not yet generated
         if ($this->record->seats()->count() === 0) {
@@ -225,12 +230,12 @@ class ManageSavingsScheme extends Page
 
             Action::make('declare_winner')
                 ->label(fn () => $this->record->current_period === 1
-                    ? 'Confirm Period #1 Winner (Organizer)'
-                    : "Declare Winner (Period #{$this->record->current_period})"
+                    ? 'Confirm Period #1 Recipient (Organizer)'
+                    : "Assign Recipient (Period #{$this->record->current_period})"
                 )
                 ->icon(fn () => $this->record->current_period === 1
                     ? 'heroicon-m-check-badge'
-                    : 'heroicon-m-trophy'
+                    : 'heroicon-m-user-check'
                 )
                 ->color(fn () => $this->record->current_period === 1 ? 'success' : 'warning')
                 ->visible(fn () => SavingsSchemeResource::canShield('DeclareWinner')
@@ -238,14 +243,17 @@ class ManageSavingsScheme extends Page
                     && $this->record->current_period <= $this->record->total_periods
                 )
                 ->modalHeading(fn () => $this->record->current_period === 1
-                    ? 'Confirm Period #1 Winner (Organizer)'
-                    : "Declare Winner for Period #{$this->record->current_period}"
+                    ? 'Confirm Period #1 Recipient (Organizer)'
+                    : "Assign Recipient for Period #{$this->record->current_period}"
                 )
                 ->modalDescription(fn () => $this->record->current_period === 1
-                    ? 'Period #1 is permanently allocated to Seat #1 (Organizer). Confirming declares the winner and auto-settles the organizer seat dues. Payout settlement is handled once member installments are collected.'
-                    : 'Select the winning seat for this round. Winner seat dues will be auto-settled, and winner declared. Payout settlement is handled once member installments are collected.'
+                    ? 'Period #1 is permanently allocated to Seat #1 (Organizer). Confirming assigns the recipient and auto-settles the organizer seat dues.'
+                    : 'Select the disbursement recipient seat for this round. Recipient seat dues will be auto-settled.'
                 )
-                ->modalSubmitActionLabel('Declare Winner')
+                ->modalSubmitActionLabel(fn () => $this->record->current_period === 1
+                    ? 'Confirm Recipient'
+                    : 'Assign Recipient'
+                )
                 ->form([
                     Placeholder::make('organizer_info')
                         ->label('Period #1 Winner')
@@ -371,7 +379,7 @@ class ManageSavingsScheme extends Page
                 }),
 
             Action::make('raffle_draw')
-                ->label('Lucky Draw (Raffle)')
+                ->label('Automated Turn Selection')
                 ->icon('heroicon-m-sparkles')
                 ->color('info')
                 ->visible(fn () => SavingsSchemeResource::canShield('DeclareWinner')
@@ -379,12 +387,12 @@ class ManageSavingsScheme extends Page
                     && $this->record->status !== 'completed'
                     && $this->record->current_period <= $this->record->total_periods
                 )
-                ->modalHeading(fn () => "🎉 Lucky Draw / Raffle for Period #{$this->record->current_period}")
-                ->modalDescription('Run an automated lucky draw among all remaining eligible seats to pick the winner for this round.')
-                ->modalSubmitActionLabel('Confirm Raffle Winner')
+                ->modalHeading(fn () => "Automated Turn Selection for Period #{$this->record->current_period}")
+                ->modalDescription('Run an automated turn selection among all remaining eligible seats to allocate the recipient for this round.')
+                ->modalSubmitActionLabel('Confirm Recipient')
                 ->form([
                     Select::make('winning_seat_id')
-                        ->label('Raffle Winner Candidate')
+                        ->label('Selected Recipient Seat')
                         ->options(function () {
                             return $this->record->seats()
                                 ->whereNull('won_at_period')
@@ -607,7 +615,7 @@ class ManageSavingsScheme extends Page
                 }),
 
             Action::make('settle_winner_payout')
-                ->label('Settle Winner Payout')
+                ->label('Settle Recipient Disbursement')
                 ->icon('heroicon-m-banknotes')
                 ->color('success')
                 ->visible(fn () => SavingsSchemeResource::canShield('DeclareWinner')

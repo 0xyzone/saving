@@ -6,7 +6,6 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\Layout\Panel;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\Layout\Stack;
@@ -26,15 +25,8 @@ class UsersTable
             })
             ->columns([
                 Stack::make([
-                    // Card Top: Avatar, Name, and Status Badges
+                    // Card Top: Name, Username, Contact, and Payment Count
                     Split::make([
-                        ImageColumn::make('avatar_url')
-                            ->circular()
-                            ->disk('public')
-                            ->size(46)
-                            ->defaultImageUrl(url('https://ui-avatars.com/api/?background=f59e0b&color=fff&name=User'))
-                            ->grow(false),
-
                         Stack::make([
                             TextColumn::make('name')
                                 ->searchable()

@@ -43,14 +43,21 @@ class UsersOverview extends StatsOverviewWidget
                 ->color('success');
         }
 
-        $stats[] = Stat::make('Active Payment Methods', UserPaymentOption::where('is_active', true)->count())
-            ->description('Total active payment accounts')
+        $userId = Auth::id();
+        $activeCount = UserPaymentOption::where('user_id', $userId)->where('is_active', true)->count();
+        $preferredCount = UserPaymentOption::where('user_id', $userId)->where('is_preferred', true)->count();
+        $profileUrl = route('filament.panel.pages.my-profile');
+
+        $stats[] = Stat::make('Active Payment Methods', $activeCount)
+            ->description('Your active payment accounts (click to manage)')
             ->descriptionIcon('heroicon-m-credit-card')
+            ->url($profileUrl)
             ->color('primary');
 
-        $stats[] = Stat::make('Preferred Payment Methods', UserPaymentOption::where('is_preferred', true)->count())
-            ->description('Total designated preferred methods')
+        $stats[] = Stat::make('Preferred Payment Methods', $preferredCount)
+            ->description('Your designated preferred methods (click to manage)')
             ->descriptionIcon('heroicon-m-check-badge')
+            ->url($profileUrl)
             ->color('info');
 
         return $stats;

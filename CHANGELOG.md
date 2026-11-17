@@ -5,6 +5,23 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-11-17
+
+### Added
+- **Edit Profile Enhancements & Payment Methods**:
+  - Added `username` and **Payment Methods** management (with QR code upload, `is_active`, and distinct single `is_preferred` toggle per user) to the Edit Profile page (`EditContactAndAddress`).
+  - Enforced a single preferred payment method per user at both the UI (`live()` toggle) and model (`UserPaymentOption::booted()`) levels.
+- **Recipient Preferred Payment & QR in Round Summary**:
+  - Displayed the round recipient's preferred/active payment method and QR code preview inside the Round Summary modal.
+- **Clickable Dashboard Widgets**:
+  - Scoped `UsersOverview` Active/Preferred Payment Methods counts to the authenticated user and linked them to the Edit Profile page.
+  - Added pending round scheme title(s) to **Current Period Dues** and click actions to **Current Period Dues**, **Total Contributed**, and **Disbursed Rounds** widgets.
+
+### Changed
+- **Formal Cooperative Savings Terminology**: Replaced informal raffle/lottery/prize wording with formal cooperative group savings & disbursement terminology across the app.
+- **Navigation Visibility**: Hid the `Savings Schemes` navigation item for users without `Create:SavingsScheme` permission.
+- **Removed Avatar Feature**: Disabled the profile avatar form and removed avatar fields from `UserForm` and `UsersTable`.
+
 ## [1.6.0] - 2026-11-17
 
 ### Added

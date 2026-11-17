@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\SavingsSchemes\SavingsSchemeResource;
 use App\Filament\Widgets\MemberSchemesOverview;
 use App\Filament\Widgets\MyInstallmentHistory;
 use App\Filament\Widgets\MyOngoingSchemeSeats;
@@ -10,6 +11,7 @@ use App\Filament\Widgets\UsersOverview;
 use App\Models\SavingsScheme;
 use App\Models\SchemePeriodReservation;
 use App\Models\User;
+use App\Models\UserPaymentOption;
 use App\Services\SavingsSchemeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -179,5 +181,60 @@ class MemberDashboardWidgetsTest extends TestCase
             ->assertSuccessful()
             ->assertSee('Gold Active Scheme')
             ->assertSee('Need funds for family event');
+    }
+
+    public function test_payment_options_single_preferred_and_nav_visibility(): void
+    {
+        Role::firstOrCreate(['name' => 'panel_user', 'guard_name' => 'web']);
+
+        $user = User::create([
+            'name' => 'Member One',
+            'username' => 'memberone',
+            'password' => 'secret123',
+        ]);
+
+        $otherUser = User::create([
+            'name' => 'Member Two',
+            'username' => 'membertwo',
+            'password' => 'secret123',
+        ]);
+
+        $opt1 = UserPaymentOption::create([
+            'user_id' => $user->id,
+            'type' => 'wallet',
+            'provider_name' => 'eSewa',
+            'account_number' => '9800000001',
+            'is_preferred' => true,
+            'is_active' => true,
+        ]);
+
+        $opt2 = UserPaymentOption::create([
+            'user_id' => $user->id,
+            'type' => 'bank',
+            'provider_name' => 'Nabil Bank',
+            'account_number' => '0011223344',
+            'is_preferred' => true,
+            'is_active' => true,
+        ]);
+
+        UserPaymentOption::create([
+            'user_id' => $otherUser->id,
+            'type' => 'wallet',
+            'provider_name' => 'Khalti',
+            'account_number' => '9811111111',
+            'is_preferred' => true,
+            'is_active' => true,
+        ]);
+
+        $this->assertFalse($opt1->fresh()->is_preferred);
+        $this->assertTrue($opt2->fresh()->is_preferred);
+
+        $this->actingAs($user);
+        $this->assertFalse(SavingsSchemeResource::shouldRegisterNavigation());
+
+        Livewire::test(UsersOverview::class)
+            ->assertSuccessful()
+            ->assertSee('2') // 2 active for $user (not 3)
+            ->assertSee('1'); // 1 preferred for $user (not 2)
     }
 }
