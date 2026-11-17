@@ -301,59 +301,84 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                        @forelse ($installments as $inst)
+                        @php
+                            $groupedInstallments = $installments->groupBy('user_id');
+                        @endphp
+                        @forelse ($groupedInstallments as $userId => $userInstallments)
+                            @php
+                                $firstInst = $userInstallments->first();
+                                $member = $firstInst?->user;
+                                $seatNumbers = $userInstallments->map(fn ($i) => '#' . ($i->seat?->seat_number ?? '?'))->implode(', ');
+                                $hasOrgSeat = $userInstallments->contains(fn ($i) => $i->seat?->seat_number === 1);
+                                $baseSum = (float) $userInstallments->sum('base_amount');
+                                $interestSum = (float) $userInstallments->sum('interest_amount');
+                                $totalDueSum = (float) $userInstallments->sum('total_due');
+                                $paidSum = (float) $userInstallments->sum(fn ($i) => in_array($i->status, ['paid', 'auto_settled_winner'], true) ? ((float) $i->paid_amount > 0 ? (float) $i->paid_amount : (float) $i->total_due) : (float) $i->paid_amount);
+                                $remainingSum = max(0.0, $totalDueSum - $paidSum);
+                                $allAutoSettled = $userInstallments->every(fn ($i) => $i->status === 'auto_settled_winner');
+                                $allPaid = $userInstallments->every(fn ($i) => $i->status === 'paid') || ($remainingSum <= 0 && ! $allAutoSettled);
+                                $isPartial = ! $allPaid && ! $allAutoSettled && $paidSum > 0;
+                                $methods = $userInstallments->pluck('payment_method')->filter()->unique()->implode(', ');
+                            @endphp
                             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
                                 <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white">
-                                    Seat #{{ $inst->seat?->seat_number }}
-                                    @if ($inst->seat?->seat_number === 1)
+                                    Seat {{ $seatNumbers }}
+                                    @if ($hasOrgSeat)
                                         <span class="ml-1 text-[10px] px-1 rounded bg-amber-500/20 text-amber-600">Org</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="font-medium text-slate-900 dark:text-white">{{ $inst->user?->name }}</div>
+                                    <div class="font-medium text-slate-900 dark:text-white">{{ $member?->name }}</div>
                                     <div class="text-xs text-slate-400">
                                         @if (auth()->id() === $record->organizer_id)
-                                            {{ $inst->user?->primary_contact_number ?: ($inst->user?->username ? '@' . $inst->user->username : '') }}
+                                            {{ $member?->primary_contact_number ?: ($member?->username ? '@' . $member->username : '') }}
                                         @else
-                                            {{ $inst->user?->username ? '@' . $inst->user->username : '' }}
+                                            {{ $member?->username ? '@' . $member->username : '' }}
                                         @endif
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono">
-                                    Rs. {{ number_format((float) $inst->base_amount, 2) }}
+                                    Rs. {{ number_format($baseSum, 2) }}
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono text-amber-600 dark:text-amber-400">
-                                    {{ $inst->interest_amount > 0 ? '+Rs. ' . number_format((float) $inst->interest_amount, 2) : '-' }}
+                                    {{ $interestSum > 0 ? '+Rs. ' . number_format($interestSum, 2) : '-' }}
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">
-                                    Rs. {{ number_format((float) $inst->total_due, 2) }}
+                                    <div>Rs. {{ number_format($totalDueSum, 2) }}</div>
+                                    @if ($isPartial)
+                                        <div class="text-[11px] font-normal text-sky-600 dark:text-sky-400">
+                                            Paid: Rs. {{ number_format($paidSum, 2) }} · Bal: Rs. {{ number_format($remainingSum, 2) }}
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    @if ($inst->status === 'paid')
+                                    @if ($allPaid)
                                         <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Paid</span>
-                                    @elseif ($inst->status === 'auto_settled_winner')
+                                    @elseif ($allAutoSettled)
                                         <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400">Auto-Settled (Winner)</span>
+                                    @elseif ($isPartial)
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400">Partial</span>
                                     @else
                                         <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">Pending</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    @if ($inst->payment_method)
+                                    @if ($methods)
                                         <span class="px-2 py-0.5 rounded text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium">
-                                            {{ $inst->payment_method }}
+                                            {{ $methods }}
                                         </span>
                                     @else
                                         <span class="text-xs text-slate-400">-</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    @if ($inst->status === 'pending' && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
-                                        <button type="button" wire:click="promptMarkInstallmentPaid({{ $inst->id }})"
+                                    @if ($remainingSum > 0 && ! $allAutoSettled && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
+                                        <button type="button" wire:click="promptUserInstallmentPayment({{ $userId }}, {{ $selectedPeriodId }})"
                                             class="px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-500 transition">
-                                            Record Payment
+                                            {{ $isPartial ? 'Add Settlement' : 'Record Payment' }}
                                         </button>
-                                    @elseif ($inst->status === 'pending')
-                                        <span class="text-xs text-amber-500 italic">Pending</span>
+                                    @elseif ($remainingSum > 0 && ! $allAutoSettled)
+                                        <span class="text-xs text-amber-500 italic">{{ $isPartial ? 'Partial' : 'Pending' }}</span>
                                     @else
                                         <span class="text-xs text-slate-400">Settled</span>
                                     @endif
@@ -620,36 +645,75 @@
         @endif
     @endif
 
-    {{-- MODAL 2: Record Installment Settlement with Method Modal --}}
-    @if ($selectedInstallmentId)
+    {{-- MODAL 2: Record Installment Settlement with Partial/Full & Date Modal --}}
+    @if ($selectedInstallmentUserId && $selectedInstallmentPeriodId)
         @php
-            $targetInst = \App\Models\SchemeInstallment::with(['seat', 'user'])->find($selectedInstallmentId);
+            $targetUser = \App\Models\User::find($selectedInstallmentUserId);
+            $userPeriodInsts = \App\Models\SchemeInstallment::with('seat')
+                ->where('scheme_period_id', $selectedInstallmentPeriodId)
+                ->where('user_id', $selectedInstallmentUserId)
+                ->orderBy('scheme_seat_id')
+                ->get();
+            $modalSeats = $userPeriodInsts->map(fn ($i) => '#' . ($i->seat?->seat_number ?? '?'))->implode(', ');
+            $modalTotalDue = (float) $userPeriodInsts->sum('total_due');
+            $modalAlreadyPaid = (float) $userPeriodInsts->sum(fn ($i) => in_array($i->status, ['paid', 'auto_settled_winner'], true) ? ((float) $i->paid_amount > 0 ? (float) $i->paid_amount : (float) $i->total_due) : (float) $i->paid_amount);
+            $modalRemaining = max(0.0, $modalTotalDue - $modalAlreadyPaid);
         @endphp
-        @if ($targetInst)
+        @if ($targetUser && $userPeriodInsts->isNotEmpty())
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                 <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                         <div>
                             <h3 class="text-base font-bold text-slate-900 dark:text-white">Record Member Settlement</h3>
                             <div class="text-xs text-slate-500">
-                                Seat #{{ $targetInst->seat?->seat_number }} — {{ $targetInst->user?->name }}
+                                Seat(s) {{ $modalSeats }} — {{ $targetUser->name }}
                             </div>
                         </div>
                         <button type="button" wire:click="cancelInstallmentPrompt" class="text-slate-400 hover:text-slate-600">✕</button>
                     </div>
 
-                    <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between text-sm">
-                        <span class="text-slate-600 dark:text-slate-300 font-medium">Total Installment Due:</span>
-                        <strong class="font-mono text-base text-slate-900 dark:text-white">Rs. {{ number_format((float) $targetInst->total_due, 2) }}</strong>
+                    <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-1 text-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-600 dark:text-slate-300 font-medium">Total Due ({{ $userPeriodInsts->count() }} {{ $userPeriodInsts->count() === 1 ? 'seat' : 'seats' }}):</span>
+                            <strong class="font-mono text-slate-900 dark:text-white">Rs. {{ number_format($modalTotalDue, 2) }}</strong>
+                        </div>
+                        @if ($modalAlreadyPaid > 0)
+                            <div class="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400">
+                                <span>Already Paid:</span>
+                                <span class="font-mono font-semibold">Rs. {{ number_format($modalAlreadyPaid, 2) }}</span>
+                            </div>
+                        @endif
+                        <div class="flex items-center justify-between pt-1 border-t border-amber-500/20">
+                            <span class="text-slate-700 dark:text-slate-200 font-semibold">Remaining Balance:</span>
+                            <strong class="font-mono text-base text-amber-600 dark:text-amber-400">Rs. {{ number_format($modalRemaining, 2) }}</strong>
+                        </div>
                     </div>
 
                     <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                    Settlement Amount (Rs.) <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="number" step="0.01" min="0.01" max="{{ $modalRemaining }}" wire:model="installmentPaymentAmount"
+                                    class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                    Settlement Date <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="date" wire:model="installmentPaidAt"
+                                    class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                 Payment Method <span class="text-rose-500">*</span>
                             </label>
                             <select wire:model="installmentPaymentMethod"
-                                class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
                                 <option value="Cash">Cash</option>
                                 <option value="eSewa">eSewa (Digital Wallet)</option>
                                 <option value="Khalti">Khalti (Digital Wallet)</option>
@@ -663,7 +727,7 @@
                                 Transaction Reference / ID (Optional)
                             </label>
                             <input type="text" wire:model="installmentPaymentReference" placeholder="e.g. eSewa Txn ID, Bank UTR #"
-                                class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
                         </div>
 
                         <div>
@@ -671,7 +735,7 @@
                                 Notes (Optional)
                             </label>
                             <textarea wire:model="installmentNotes" rows="2" placeholder="Payment notes"
-                                class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+                                class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
                         </div>
                     </div>
 

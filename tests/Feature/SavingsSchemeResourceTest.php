@@ -278,4 +278,83 @@ class SavingsSchemeResourceTest extends TestCase
         $this->assertEquals('paid', $installment->fresh()->status);
         $this->assertEquals('active', $scheme->fresh()->status);
     }
+
+    public function test_partial_and_full_multi_seat_settlement_with_date_and_auto_round_completion(): void
+    {
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $organizer = User::create([
+            'name' => 'Organizer',
+            'username' => 'org1',
+            'primary_contact_number' => '9800000001',
+            'password' => 'secret123',
+        ]);
+        $organizer->assignRole($superAdminRole);
+
+        $member = User::create([
+            'name' => 'Multi Seat Member',
+            'username' => 'multimember',
+            'primary_contact_number' => '9800000022',
+            'password' => 'secret123',
+        ]);
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Auto Complete Round Scheme',
+            'organizer_id' => $organizer->id,
+            'total_seats' => 1,
+            'total_periods' => 1,
+            'installment_amount' => 5000,
+            'interest_amount' => 200,
+            'khaja_kharcha' => 2000,
+            'frequency' => 'monthly',
+            'start_date' => now()->toDateString(),
+            'status' => 'draft',
+        ]);
+
+        $service = app(SavingsSchemeService::class);
+        $service->initializeScheme($scheme);
+        $service->allocateSeat($scheme, $member);
+        $service->allocateSeat($scheme, $member);
+
+        $scheme->refresh();
+        $period1 = $scheme->periods()->where('period_number', 1)->first();
+        $service->generatePeriodInstallments($scheme, $period1);
+
+        $this->actingAs($organizer);
+
+        // Grouped list shows 1 row for Multi Seat Member with Seat #2, #3
+        $component = Livewire::test(ManageSavingsScheme::class, ['record' => $scheme]);
+        $component->assertSee('Seat #2, #3');
+
+        // 1. Partial settlement of Rs. 4,000 on 2026-11-10
+        $component->call('promptUserInstallmentPayment', $member->id, $period1->id)
+            ->set('installmentPaymentAmount', 4000)
+            ->set('installmentPaidAt', '2026-11-10')
+            ->call('confirmMarkInstallmentPaid')
+            ->assertNotified('Installment Marked as Paid');
+
+        $scheme->refresh();
+        $this->assertEquals('active', $scheme->status);
+        $this->assertEquals(1, $scheme->current_period);
+
+        $memberInsts = $period1->installments()->where('user_id', $member->id)->orderBy('scheme_seat_id')->get();
+        $this->assertEquals(4000.00, (float) $memberInsts[0]->paid_amount);
+        $this->assertEquals('partial', $memberInsts[0]->status);
+        $this->assertEquals('2026-11-10', $memberInsts[0]->paid_at->format('Y-m-d'));
+        $this->assertEquals(0.00, (float) $memberInsts[1]->paid_amount);
+
+        // 2. Remaining settlement of Rs. 6,000 -> auto-settles Period #1 & advances to Period #2
+        $component->call('promptUserInstallmentPayment', $member->id, $period1->id)
+            ->set('installmentPaymentAmount', 6000)
+            ->set('installmentPaidAt', '2026-11-12')
+            ->call('confirmMarkInstallmentPaid')
+            ->assertNotified('Installment Marked as Paid');
+
+        $scheme->refresh();
+        $period1->refresh();
+        $this->assertEquals('completed', $period1->status);
+        $this->assertEquals('paid', $period1->payout_status);
+        $this->assertEquals(10000.00, (float) $period1->paid_amount); // 3 * 5k - 5k own seat
+        $this->assertEquals(2, $scheme->current_period);
+        $this->assertEquals('in_progress', $scheme->periods()->where('period_number', 2)->first()->status);
+    }
 }

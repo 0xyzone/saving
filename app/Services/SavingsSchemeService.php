@@ -360,11 +360,13 @@ class SavingsSchemeService
                 'status' => 'completed',
             ]);
 
-            // Auto-settle all installments for the winner's seats in this period
+            // Auto-settle any unpaid installments for the winner's seats in this period
             SchemeInstallment::where('scheme_period_id', $period->id)
                 ->where('user_id', $winningSeat->user_id)
+                ->whereNotIn('status', ['paid'])
                 ->update([
                     'status' => 'auto_settled_winner',
+                    'paid_amount' => DB::raw('total_due'),
                     'payment_method' => 'Auto-Settled (Winner Prize)',
                     'paid_at' => now(),
                     'notes' => 'Settled via winning payout deduction for Period #'.$period->period_number,
@@ -457,5 +459,166 @@ class SavingsSchemeService
             'reviewed_by' => $reviewer->id,
             'reviewed_at' => now(),
         ]);
+    }
+
+    /**
+     * Record a partial or full installment settlement for a user across all their seats in a period.
+     *
+     * @return array{applied: float, fully_settled_period: bool, auto_completed_round: bool}
+     */
+    public function settleUserPeriodInstallments(
+        SavingsScheme $scheme,
+        SchemePeriod $period,
+        int $userId,
+        float $amount,
+        string $method = 'Cash',
+        ?string $paidAt = null,
+        ?int $verifiedBy = null,
+        ?string $notes = null,
+    ): array {
+        return DB::transaction(function () use ($scheme, $period, $userId, $amount, $method, $paidAt, $verifiedBy, $notes): array {
+            $installments = SchemeInstallment::query()
+                ->where('scheme_period_id', $period->id)
+                ->where('user_id', $userId)
+                ->whereNotIn('status', ['paid', 'auto_settled_winner'])
+                ->orderBy('scheme_seat_id')
+                ->get();
+
+            $remainingToApply = max(0.00, $amount);
+            $totalApplied = 0.00;
+            $settlementTimestamp = filled($paidAt) ? Carbon::parse($paidAt) : now();
+
+            foreach ($installments as $installment) {
+                if ($remainingToApply <= 0) {
+                    break;
+                }
+
+                $seatRemaining = $installment->remaining_due;
+                if ($seatRemaining <= 0) {
+                    continue;
+                }
+
+                $apply = min($remainingToApply, $seatRemaining);
+                $newPaidAmount = round((float) $installment->paid_amount + $apply, 2);
+                $isSeatPaid = $newPaidAmount >= (float) $installment->total_due;
+
+                $installment->update([
+                    'paid_amount' => $newPaidAmount,
+                    'status' => $isSeatPaid ? 'paid' : 'partial',
+                    'payment_method' => $method,
+                    'paid_at' => $settlementTimestamp,
+                    'verified_by' => $verifiedBy,
+                    'notes' => $notes ?: $installment->notes,
+                ]);
+
+                $remainingToApply = round($remainingToApply - $apply, 2);
+                $totalApplied = round($totalApplied + $apply, 2);
+            }
+
+            if ($totalApplied > 0 && ! in_array($scheme->status, ['active', 'completed'], true)) {
+                $scheme->update(['status' => 'active']);
+            }
+
+            $candidateSeat = $this->resolveAutoWinnerSeat($scheme, $period);
+            $allSettled = $this->areAllRequiredInstallmentsSettled($period, $candidateSeat);
+
+            $autoCompleted = false;
+            if ($allSettled) {
+                $autoCompleted = $this->checkAndAutoCompletePeriod($scheme, $period);
+            }
+
+            return [
+                'applied' => $totalApplied,
+                'fully_settled_period' => $allSettled,
+                'auto_completed_round' => $autoCompleted,
+            ];
+        });
+    }
+
+    /**
+     * Automatically mark a period settled and paid out to the winner and advance to the next round
+     * once all installments for that period are settled.
+     */
+    public function checkAndAutoCompletePeriod(SavingsScheme $scheme, SchemePeriod $period): bool
+    {
+        $period->refresh();
+        $scheme->refresh();
+
+        $candidateSeat = $this->resolveAutoWinnerSeat($scheme, $period);
+
+        if (! $this->areAllRequiredInstallmentsSettled($period, $candidateSeat)) {
+            return false;
+        }
+
+        // Case 1: Winner already declared — mark payout as fully paid and ensure round is completed & advanced
+        if ($period->winning_seat_id) {
+            if ($period->payout_status !== 'paid' || $period->status !== 'completed') {
+                $period->update([
+                    'paid_amount' => $period->net_payout_amount,
+                    'payout_status' => 'paid',
+                    'paid_at' => $period->paid_at ?? now(),
+                    'status' => 'completed',
+                ]);
+            }
+
+            if ($scheme->current_period === $period->period_number && $period->period_number < $scheme->total_periods) {
+                $nextPeriodNumber = $period->period_number + 1;
+                $scheme->update(['current_period' => $nextPeriodNumber]);
+                $nextPeriod = $scheme->periods()->where('period_number', $nextPeriodNumber)->first();
+                if ($nextPeriod) {
+                    $nextPeriod->update(['status' => 'in_progress']);
+                    $this->generatePeriodInstallments($scheme, $nextPeriod);
+                }
+            } elseif ($period->period_number >= $scheme->total_periods) {
+                $scheme->update(['status' => 'completed']);
+            }
+
+            return true;
+        }
+
+        if ($candidateSeat && $candidateSeat->user_id) {
+            $this->declareWinner(
+                scheme: $scheme,
+                period: $period,
+                winningSeat: $candidateSeat,
+                payoutNotes: "Automatically settled and paid out upon full collection of Period #{$period->period_number} installments.",
+                payoutMethod: 'Auto-Settled',
+            );
+
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function resolveAutoWinnerSeat(SavingsScheme $scheme, SchemePeriod $period): ?SchemeSeat
+    {
+        if ($period->winning_seat_id) {
+            return $period->winningSeat;
+        }
+
+        if ($period->period_number === 1) {
+            return $scheme->seats()->where('seat_number', 1)->first();
+        }
+
+        $approvedReservation = $period->reservations()
+            ->where('status', 'approved')
+            ->whereNotNull('scheme_seat_id')
+            ->first();
+
+        return $approvedReservation?->seat;
+    }
+
+    protected function areAllRequiredInstallmentsSettled(SchemePeriod $period, ?SchemeSeat $knownWinnerSeat = null): bool
+    {
+        $query = SchemeInstallment::query()
+            ->where('scheme_period_id', $period->id)
+            ->whereNotIn('status', ['paid', 'auto_settled_winner']);
+
+        if ($knownWinnerSeat?->user_id) {
+            $query->where('user_id', '!=', $knownWinnerSeat->user_id);
+        }
+
+        return ! $query->exists();
     }
 }

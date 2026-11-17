@@ -18,6 +18,7 @@ class SchemeInstallment extends Model
         'base_amount',
         'interest_amount',
         'total_due',
+        'paid_amount',
         'status',
         'user_payment_option_id',
         'payment_method',
@@ -33,8 +34,18 @@ class SchemeInstallment extends Model
             'base_amount' => 'decimal:2',
             'interest_amount' => 'decimal:2',
             'total_due' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
             'paid_at' => 'datetime',
         ];
+    }
+
+    public function getRemainingDueAttribute(): float
+    {
+        if (in_array($this->status, ['paid', 'auto_settled_winner'], true)) {
+            return 0.00;
+        }
+
+        return max(0.00, (float) $this->total_due - (float) $this->paid_amount);
     }
 
     public function scheme(): BelongsTo

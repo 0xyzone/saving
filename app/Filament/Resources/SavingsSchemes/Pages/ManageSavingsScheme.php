@@ -760,6 +760,14 @@ class ManageSavingsScheme extends Page
 
     public ?int $selectedInstallmentId = null;
 
+    public ?int $selectedInstallmentUserId = null;
+
+    public ?int $selectedInstallmentPeriodId = null;
+
+    public float|string $installmentPaymentAmount = 0;
+
+    public string $installmentPaidAt = '';
+
     public string $installmentPaymentMethod = 'Cash';
 
     public ?string $installmentPaymentReference = null;
@@ -776,22 +784,42 @@ class ManageSavingsScheme extends Page
         $this->viewPeriodId = null;
     }
 
-    public function promptMarkInstallmentPaid(int $installmentId): void
+    public function promptUserInstallmentPayment(int $userId, int $periodId): void
     {
-        $this->selectedInstallmentId = $installmentId;
+        $installments = SchemeInstallment::query()
+            ->where('scheme_period_id', $periodId)
+            ->where('user_id', $userId)
+            ->whereNotIn('status', ['paid', 'auto_settled_winner'])
+            ->get();
+
+        $remaining = round((float) $installments->sum(fn (SchemeInstallment $inst): float => $inst->remaining_due), 2);
+
+        $this->selectedInstallmentId = $installments->first()?->id;
+        $this->selectedInstallmentUserId = $userId;
+        $this->selectedInstallmentPeriodId = $periodId;
+        $this->installmentPaymentAmount = $remaining;
+        $this->installmentPaidAt = now()->format('Y-m-d');
         $this->installmentPaymentMethod = 'Cash';
         $this->installmentPaymentReference = null;
         $this->installmentNotes = null;
     }
 
+    public function promptMarkInstallmentPaid(int $installmentId): void
+    {
+        $installment = SchemeInstallment::findOrFail($installmentId);
+        $this->promptUserInstallmentPayment($installment->user_id, $installment->scheme_period_id);
+    }
+
     public function cancelInstallmentPrompt(): void
     {
         $this->selectedInstallmentId = null;
+        $this->selectedInstallmentUserId = null;
+        $this->selectedInstallmentPeriodId = null;
     }
 
     public function confirmMarkInstallmentPaid(): void
     {
-        if (! $this->selectedInstallmentId) {
+        if (! $this->selectedInstallmentUserId || ! $this->selectedInstallmentPeriodId) {
             return;
         }
 
@@ -805,34 +833,56 @@ class ManageSavingsScheme extends Page
             return;
         }
 
-        $installment = SchemeInstallment::findOrFail($this->selectedInstallmentId);
-        $installment->update([
-            'status' => 'paid',
-            'payment_method' => $this->installmentPaymentMethod,
-            'paid_at' => now(),
-            'verified_by' => auth()->id(),
-            'notes' => $this->installmentPaymentReference
-                ? "Ref: {$this->installmentPaymentReference}. {$this->installmentNotes}"
-                : $this->installmentNotes,
-        ]);
+        $amount = (float) $this->installmentPaymentAmount;
+        if ($amount <= 0) {
+            Notification::make()
+                ->title('Invalid Amount')
+                ->body('Settlement amount must be greater than zero.')
+                ->danger()
+                ->send();
 
-        if (! in_array($this->record->status, ['active', 'completed'], true)) {
-            $this->record->update(['status' => 'active']);
+            return;
         }
 
-        Notification::make()
-            ->title('Installment Marked as Paid')
-            ->body("Seat #{$installment->seat?->seat_number} marked as Paid via {$this->installmentPaymentMethod}.")
-            ->success()
-            ->send();
+        $period = SchemePeriod::findOrFail($this->selectedInstallmentPeriodId);
+        $notes = $this->installmentPaymentReference
+            ? trim("Ref: {$this->installmentPaymentReference}. {$this->installmentNotes}")
+            : $this->installmentNotes;
 
-        $this->selectedInstallmentId = null;
+        $result = app(SavingsSchemeService::class)->settleUserPeriodInstallments(
+            scheme: $this->record,
+            period: $period,
+            userId: $this->selectedInstallmentUserId,
+            amount: $amount,
+            method: $this->installmentPaymentMethod,
+            paidAt: $this->installmentPaidAt ?: now()->toDateString(),
+            verifiedBy: auth()->id(),
+            notes: $notes,
+        );
+
+        if ($result['auto_completed_round']) {
+            Notification::make()
+                ->title('Installment Marked as Paid')
+                ->body('Rs. '.number_format($result['applied'], 2)." recorded. All installments for Period #{$period->period_number} are settled; winner payout completed and next round started.")
+                ->success()
+                ->send();
+        } else {
+            Notification::make()
+                ->title('Installment Marked as Paid')
+                ->body('Rs. '.number_format($result['applied'], 2)." settled via {$this->installmentPaymentMethod}.")
+                ->success()
+                ->send();
+        }
+
+        $this->cancelInstallmentPrompt();
         $this->record->refresh();
     }
 
     public function markInstallmentPaid(int $installmentId, string $method = 'Cash'): void
     {
-        $this->selectedInstallmentId = $installmentId;
+        $installment = SchemeInstallment::findOrFail($installmentId);
+        $this->promptUserInstallmentPayment($installment->user_id, $installment->scheme_period_id);
+        $this->installmentPaymentAmount = $installment->remaining_due;
         $this->installmentPaymentMethod = $method;
         $this->confirmMarkInstallmentPaid();
     }

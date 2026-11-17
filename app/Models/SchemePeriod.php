@@ -55,7 +55,17 @@ class SchemePeriod extends Model
 
     public function getTotalCollectedAmountAttribute(): float
     {
-        return (float) $this->installments->where('status', 'paid')->sum('total_due');
+        return (float) $this->installments->sum(function (SchemeInstallment $inst): float {
+            if ($inst->status === 'paid') {
+                return (float) $inst->paid_amount > 0 ? (float) $inst->paid_amount : (float) $inst->total_due;
+            }
+
+            if ($inst->status === 'partial') {
+                return (float) $inst->paid_amount;
+            }
+
+            return 0.00;
+        });
     }
 
     public function getWinnerBalanceRemainingAttribute(): float

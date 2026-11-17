@@ -24,7 +24,7 @@ class UsersOverview extends StatsOverviewWidget
                 ->description('All registered users')
                 ->descriptionIcon('heroicon-m-users')
                 ->chart([3, 5, 7, 10, 12, User::count()])
-                ->visible(fn() => !auth()->user()->hasRole(Utils::getSuperAdminName()))
+                ->visible(fn () => ! auth()->user()->hasRole('super_admin'))
                 ->color('success'),
 
             Stat::make('Active Payment Methods', UserPaymentOption::where('is_active', true)->count())

@@ -5,6 +5,15 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-11-17
+
+### Added
+- **Grouped Multi-Seat Installments & Partial/Full Settlements**:
+  - Grouped the period installments list by member (`1` row per user across all their seats in the round) with combined seat numbers, base amount, interest, total due, paid amount, and remaining balance.
+  - Added `paid_amount` to `scheme_installments` and updated the settlement modal to support **partial** or **full** settlement amounts along with a selectable **Settlement Date**.
+- **Automatic Round Completion & Winner Payout**:
+  - Once all required installments for a round are settled, the round is automatically marked `completed` and `paid` out to the winner (for Period #1 Organizer, periods with an already-declared winner, or periods with an approved reservation), and the scheme advances to the next round.
+
 ## [1.5.0] - 2026-11-17
 
 ### Added
