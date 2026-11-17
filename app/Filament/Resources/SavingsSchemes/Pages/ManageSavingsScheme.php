@@ -39,14 +39,7 @@ class ManageSavingsScheme extends Page
     {
         $this->record = $record instanceof SavingsScheme ? $record : $this->resolveRecord($record);
         abort_unless(SavingsSchemeResource::canView($this->record), 403);
-        $this->record->load([
-            'organizer',
-            'seats.user',
-            'periods.winningSeat.user',
-            'periods.winnerUser',
-            'periods.reservations.user',
-            'periods.reservations.seat',
-        ]);
+        $this->refreshSchemeRecord();
 
         // Auto initialize seats and periods if not yet generated
         if ($this->record->seats()->count() === 0) {
@@ -793,6 +786,21 @@ class ManageSavingsScheme extends Page
         $this->viewPeriodId = null;
     }
 
+    public function refreshSchemeRecord(): void
+    {
+        $this->record->refresh();
+        $this->record->load([
+            'organizer',
+            'seats.user',
+            'periods.winningSeat.user',
+            'periods.winnerUser',
+            'periods.reservations.user',
+            'periods.reservations.seat',
+            'periods.installments.seat',
+            'periods.installments.user',
+        ]);
+    }
+
     public function refreshPeriodInstallments(?int $periodId = null): void
     {
         $service = app(SavingsSchemeService::class);
@@ -819,7 +827,7 @@ class ManageSavingsScheme extends Page
                 ->send();
         }
 
-        $this->record->refresh();
+        $this->refreshSchemeRecord();
     }
 
     public function promptUserInstallmentPayment(int $userId, int $periodId): void
@@ -947,7 +955,7 @@ class ManageSavingsScheme extends Page
         }
 
         $this->cancelInstallmentPrompt();
-        $this->record->refresh();
+        $this->refreshSchemeRecord();
     }
 
     public function markInstallmentPaid(int $installmentId, string $method = 'Cash'): void
@@ -976,7 +984,7 @@ class ManageSavingsScheme extends Page
             ->success()
             ->send();
 
-        $this->record->refresh();
+        $this->refreshSchemeRecord();
     }
 
     public ?int $declaringWinnerPeriodId = null;
@@ -1040,7 +1048,7 @@ class ManageSavingsScheme extends Page
             ->send();
 
         $this->closeDeclareWinnerModal();
-        $this->record->refresh();
+        $this->refreshSchemeRecord();
     }
 
     public ?int $reservingPeriodId = null;
@@ -1095,7 +1103,7 @@ class ManageSavingsScheme extends Page
             ->send();
 
         $this->closeReserveModal();
-        $this->record->refresh();
+        $this->refreshSchemeRecord();
     }
 
     public ?int $validatingPeriodId = null;
@@ -1142,7 +1150,7 @@ class ManageSavingsScheme extends Page
             ->send();
 
         $this->closeValidateRound();
-        $this->record->refresh();
+        $this->refreshSchemeRecord();
     }
 
     public function toggleRevokeValidation(int $periodId): void
@@ -1166,7 +1174,7 @@ class ManageSavingsScheme extends Page
             ->info()
             ->send();
 
-        $this->record->refresh();
+        $this->refreshSchemeRecord();
     }
 
     public static function formatUserSelectLabel(User $user): string

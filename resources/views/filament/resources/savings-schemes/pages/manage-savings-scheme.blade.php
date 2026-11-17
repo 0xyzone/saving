@@ -527,7 +527,7 @@
     {{-- MODAL 1: Dedicated View Round Details Modal --}}
     @if ($viewPeriodId)
         @php
-            $viewPeriod = $record->periods->firstWhere('id', $viewPeriodId);
+            $viewPeriod = $record->periods()->with(['installments.seat', 'installments.user', 'winningSeat.user', 'winnerUser', 'reservations.seat', 'reservations.user'])->find($viewPeriodId);
         @endphp
         @if ($viewPeriod)
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
@@ -1142,7 +1142,7 @@
     {{-- MODAL 3.5: Declare Winner Modal --}}
     @if ($declaringWinnerPeriodId)
         @php
-            $decPeriod = $record->periods->firstWhere('id', $declaringWinnerPeriodId);
+            $decPeriod = $record->periods()->with('installments')->find($declaringWinnerPeriodId);
             $eligibleSeats = $record->seats->filter(function ($s) use ($decPeriod) {
                 // Must be assigned to a user
                 if (! $s->user_id) {
@@ -1250,7 +1250,7 @@
     {{-- MODAL 4: Round Audit & Validation Modal --}}
     @if ($validatingPeriodId)
         @php
-            $valPeriod = $record->periods->firstWhere('id', $validatingPeriodId);
+            $valPeriod = $record->periods()->with('installments')->find($validatingPeriodId);
             $totalSeatsCount = $valPeriod?->installments->count() ?? 0;
             $paidSeatsCount = $valPeriod?->installments->where('status', 'paid')->count() ?? 0;
             $unpaidInstallments = $valPeriod?->installments->where('status', '!=', 'paid') ?? collect();
