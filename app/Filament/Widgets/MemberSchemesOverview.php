@@ -10,6 +10,7 @@ use App\Models\SchemePeriod;
 use App\Models\SchemeSeat;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Auth;
 
 class MemberSchemesOverview extends StatsOverviewWidget
 {
@@ -17,12 +18,12 @@ class MemberSchemesOverview extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->hasOngoingSchemeSeats() ?? false;
+        return Auth::user()?->hasOngoingSchemeSeats() ?? false;
     }
 
     protected function getStats(): array
     {
-        $userId = auth()->id();
+        $userId = Auth::id();
 
         $ongoingSeats = SchemeSeat::query()
             ->with('scheme')

@@ -9,6 +9,7 @@ use App\Models\SchemePeriod;
 use App\Models\SchemePeriodReservation;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 
 class MyReservationsAndWinnings extends Widget
 {
@@ -20,7 +21,7 @@ class MyReservationsAndWinnings extends Widget
 
     public static function canView(): bool
     {
-        return auth()->user()?->hasOngoingSchemeSeats() ?? false;
+        return Auth::user()?->hasOngoingSchemeSeats() ?? false;
     }
 
     /**
@@ -28,7 +29,7 @@ class MyReservationsAndWinnings extends Widget
      */
     protected function getViewData(): array
     {
-        $userId = auth()->id();
+        $userId = Auth::id();
 
         $winnings = SchemePeriod::query()
             ->with(['scheme', 'winningSeat'])

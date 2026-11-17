@@ -7,6 +7,7 @@ use App\Models\UserPaymentOption;
 use BezhanSalleh\FilamentShield\Support\Utils;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Auth;
 
 class UsersOverview extends StatsOverviewWidget
 {
@@ -14,7 +15,7 @@ class UsersOverview extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        return (bool) auth()->user()?->hasRole(Utils::getSuperAdminName());
+        return (bool) Auth::user()?->hasRole(Utils::getSuperAdminName());
     }
 
     protected function getStats(): array
@@ -24,7 +25,7 @@ class UsersOverview extends StatsOverviewWidget
                 ->description('All registered users')
                 ->descriptionIcon('heroicon-m-users')
                 ->chart([3, 5, 7, 10, 12, User::count()])
-                ->visible(fn () => ! auth()->user()->hasRole('super_admin'))
+                ->visible(fn () => ! Auth::user()?->hasRole('super_admin'))
                 ->color('success'),
 
             Stat::make('Active Payment Methods', UserPaymentOption::where('is_active', true)->count())

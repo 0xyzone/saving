@@ -330,7 +330,7 @@
                                 <td class="px-4 py-3">
                                     <div class="font-medium text-slate-900 dark:text-white">{{ $member?->name }}</div>
                                     <div class="text-xs text-slate-400">
-                                        @if (auth()->id() === $record->organizer_id)
+                                        @if (\Illuminate\Support\Facades\Auth::id() === $record->organizer_id)
                                             {{ $member?->primary_contact_number ?: ($member?->username ? '@' . $member->username : '') }}
                                         @else
                                             {{ $member?->username ? '@' . $member->username : '' }}
@@ -521,7 +521,7 @@
                                         </div>
                                         <div class="text-xs text-slate-500">
                                             @if ($viewPeriod->winnerUser)
-                                                @if (auth()->id() === $record->organizer_id && $viewPeriod->winnerUser->primary_contact_number)
+                                                @if (\Illuminate\Support\Facades\Auth::id() === $record->organizer_id && $viewPeriod->winnerUser->primary_contact_number)
                                                     Phone: {{ $viewPeriod->winnerUser->primary_contact_number }}
                                                 @elseif ($viewPeriod->winnerUser->username)
                                                     {{ '@' . $viewPeriod->winnerUser->username }}

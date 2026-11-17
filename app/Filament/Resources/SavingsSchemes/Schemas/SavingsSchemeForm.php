@@ -11,6 +11,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Auth;
 
 class SavingsSchemeForm
 {
@@ -31,7 +32,7 @@ class SavingsSchemeForm
                         Select::make('organizer_id')
                             ->label('Organizer (Holds Seat #1)')
                             ->options(fn () => User::pluck('name', 'id')->toArray())
-                            ->default(fn () => auth()->id())
+                            ->default(fn () => Auth::id())
                             ->searchable()
                             ->required(),
 

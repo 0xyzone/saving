@@ -21,6 +21,7 @@ use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Filament\Schemas\Components\Grid;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
 
 class ManageSavingsScheme extends Page
@@ -572,7 +573,7 @@ class ManageSavingsScheme extends Page
                         $user,
                         $seat,
                         $data['reason'] ?? null,
-                        auth()->user(),
+                        Auth::user(),
                         directApprove: ($data['status'] === 'approved')
                     );
 
@@ -856,7 +857,7 @@ class ManageSavingsScheme extends Page
             amount: $amount,
             method: $this->installmentPaymentMethod,
             paidAt: $this->installmentPaidAt ?: now()->toDateString(),
-            verifiedBy: auth()->id(),
+            verifiedBy: Auth::id(),
             notes: $notes,
         );
 
@@ -948,7 +949,7 @@ class ManageSavingsScheme extends Page
             $user,
             $seat,
             $this->reservingReason,
-            auth()->user(),
+            Auth::user(),
             directApprove: ($this->reservingStatus === 'approved')
         );
 
@@ -985,7 +986,7 @@ class ManageSavingsScheme extends Page
             return;
         }
 
-        if (! SavingsSchemeResource::canShield('DeclareWinner') && ! auth()->user()?->hasRole('super_admin')) {
+        if (! SavingsSchemeResource::canShield('DeclareWinner') && ! Auth::user()?->hasRole('super_admin')) {
             Notification::make()->title('Unauthorized to validate rounds.')->danger()->send();
 
             return;
@@ -995,7 +996,7 @@ class ManageSavingsScheme extends Page
         $period->update([
             'is_validated' => true,
             'validated_at' => now(),
-            'validated_by' => auth()->id(),
+            'validated_by' => Auth::id(),
             'validation_notes' => $this->validationNotes,
         ]);
 
@@ -1011,7 +1012,7 @@ class ManageSavingsScheme extends Page
 
     public function toggleRevokeValidation(int $periodId): void
     {
-        if (! SavingsSchemeResource::canShield('DeclareWinner') && ! auth()->user()?->hasRole('super_admin')) {
+        if (! SavingsSchemeResource::canShield('DeclareWinner') && ! Auth::user()?->hasRole('super_admin')) {
             Notification::make()->title('Unauthorized')->danger()->send();
 
             return;

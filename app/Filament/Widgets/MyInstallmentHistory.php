@@ -10,6 +10,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
+use Illuminate\Support\Facades\Auth;
 
 class MyInstallmentHistory extends TableWidget
 {
@@ -21,7 +22,7 @@ class MyInstallmentHistory extends TableWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->hasOngoingSchemeSeats() ?? false;
+        return Auth::user()?->hasOngoingSchemeSeats() ?? false;
     }
 
     public function table(Table $table): Table
@@ -30,7 +31,7 @@ class MyInstallmentHistory extends TableWidget
             ->query(
                 SchemeInstallment::query()
                     ->with(['scheme', 'period', 'seat'])
-                    ->where('user_id', auth()->id())
+                    ->where('user_id', Auth::id())
                     ->whereHas('scheme', fn ($query) => $query->whereIn('status', SavingsScheme::ONGOING_STATUSES))
                     ->latest('id')
             )

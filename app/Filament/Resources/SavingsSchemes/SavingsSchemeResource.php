@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class SavingsSchemeResource extends Resource
@@ -55,7 +56,7 @@ class SavingsSchemeResource extends Resource
     {
         $query = parent::getEloquentQuery();
 
-        $user = auth()->user();
+        $user = Auth::user();
 
         if ($user && ! $user->hasRole(Utils::getSuperAdminName())) {
             $query->where('organizer_id', $user->id);

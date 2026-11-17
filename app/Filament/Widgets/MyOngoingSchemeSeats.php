@@ -15,6 +15,7 @@ use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
+use Illuminate\Support\Facades\Auth;
 
 class MyOngoingSchemeSeats extends TableWidget
 {
@@ -26,7 +27,7 @@ class MyOngoingSchemeSeats extends TableWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->hasOngoingSchemeSeats() ?? false;
+        return Auth::user()?->hasOngoingSchemeSeats() ?? false;
     }
 
     public function table(Table $table): Table
@@ -35,7 +36,7 @@ class MyOngoingSchemeSeats extends TableWidget
             ->query(
                 SchemeSeat::query()
                     ->with(['scheme.organizer', 'scheme.periods', 'installments.period'])
-                    ->where('user_id', auth()->id())
+                    ->where('user_id', Auth::id())
                     ->whereHas('scheme', fn ($query) => $query->whereIn('status', SavingsScheme::ONGOING_STATUSES))
                     ->orderBy('savings_scheme_id')
                     ->orderBy('seat_number')

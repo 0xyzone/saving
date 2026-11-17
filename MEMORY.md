@@ -43,7 +43,8 @@ Every time any task is completed, the agent must:
   - Mouse wheel scrolling over number fields must not change the number or input value (`onwheel: this.blur()`).
 
 ## 4. Core Architecture Conventions
-- **Authentication**: Users authenticate using `primary_contact_number` (not email).
-- **Two-Step Login**: Step 1 validates that the primary contact number exists in DB; Step 2 presents the password field.
+- **Auth Facade Over Helper**: Always use `Auth::user()` / `Auth::id()` (`Illuminate\Support\Facades\Auth`) instead of `auth()->user()` / `auth()->id()` across PHP classes and Blade views.
+- **Authentication**: Users authenticate using `username` or `primary_contact_number`.
+- **Two-Step Login**: Step 1 validates that the `username` or `primary_contact_number` exists in DB; Step 2 presents the password field.
 - **Payment Options**: Stored in relational table `user_payment_options` associated with `User`.
 - **Profile Management**: Handled via `joaopaulolndev/filament-edit-profile` with custom components for contact numbers and address.
