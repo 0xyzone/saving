@@ -252,22 +252,20 @@ class SavingsSchemeResourceTest extends TestCase
 
         $this->actingAs($admin);
 
-        // Allocate specific seats to Alice (Seat #2, #4) and Bob (Seat #3, #5)
+        // Allocate 2 seats to Alice and 2 seats to Bob
         Livewire::test(ManageSavingsScheme::class, ['record' => $scheme])
             ->callAction('assign_seat', [
                 'allocations' => [
-                    ['user_id' => $member1->id, 'seat_number' => 2],
-                    ['user_id' => $member2->id, 'seat_number' => 3],
-                    ['user_id' => $member1->id, 'seat_number' => 4],
-                    ['user_id' => $member2->id, 'seat_number' => 5],
+                    ['user_id' => $member1->id, 'seat_count' => 2],
+                    ['user_id' => $member2->id, 'seat_count' => 2],
                 ],
             ])
             ->assertHasNoErrors();
 
         $scheme->refresh();
         $this->assertEquals(5, $scheme->seats()->count());
-        $this->assertEquals([2, 4], $scheme->seats()->where('user_id', $member1->id)->orderBy('seat_number')->pluck('seat_number')->toArray());
-        $this->assertEquals([3, 5], $scheme->seats()->where('user_id', $member2->id)->orderBy('seat_number')->pluck('seat_number')->toArray());
+        $this->assertEquals(2, $scheme->seats()->where('user_id', $member1->id)->count());
+        $this->assertEquals(2, $scheme->seats()->where('user_id', $member2->id)->count());
         $this->assertEquals('draft', $scheme->status);
 
         // Settle one installment -> scheme automatically becomes active

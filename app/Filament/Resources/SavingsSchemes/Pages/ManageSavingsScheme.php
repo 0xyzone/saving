@@ -593,7 +593,7 @@ class ManageSavingsScheme extends Page
                 ->color('primary')
                 ->visible(fn () => SavingsSchemeResource::canShield('ManageSeats'))
                 ->modalHeading('Allocate Seats to Members')
-                ->modalDescription('Add one or more seat allocations and choose a specific seat number (or auto-allocate) for each selected member.')
+                ->modalDescription('Add one or more members and enter the number of seats to allocate for each selected member.')
                 ->form([
                     Repeater::make('allocations')
                         ->label('Seat Allocations')
@@ -622,46 +622,19 @@ class ManageSavingsScheme extends Page
                                 ->searchable()
                                 ->required(),
 
-                            Select::make('seat_number')
-                                ->label('Seat Number')
-                                ->placeholder('Auto-allocate next available seat')
-                                ->options(function (callable $get): array {
-                                    $allocations = $get('../../allocations') ?? [];
-                                    $selectedElsewhere = collect($allocations)
-                                        ->pluck('seat_number')
-                                        ->filter()
-                                        ->map(fn ($num) => (int) $num)
-                                        ->all();
-
-                                    $currentSeat = filled($get('seat_number')) ? (int) $get('seat_number') : null;
-                                    $excluded = array_diff($selectedElsewhere, $currentSeat ? [$currentSeat] : []);
-
-                                    $available = $this->record->seats()
-                                        ->where('seat_number', '!=', 1)
-                                        ->whereNull('user_id')
-                                        ->when(! empty($excluded), fn ($q) => $q->whereNotIn('seat_number', $excluded))
-                                        ->pluck('seat_number', 'seat_number')
-                                        ->mapWithKeys(fn ($num): array => [$num => "Seat #{$num}"])
-                                        ->toArray();
-
-                                    $existingMax = max(1, (int) $this->record->seats()->max('seat_number'));
-                                    $dynamicSlots = max(1, count($allocations));
-
-                                    for ($n = $existingMax + 1; $n <= $existingMax + $dynamicSlots; $n++) {
-                                        if (! in_array($n, $excluded, true)) {
-                                            $available[$n] = "Seat #{$n} (Dynamic Round)";
-                                        }
-                                    }
-
-                                    return $available;
-                                })
-                                ->live()
-                                ->nullable(),
+                            TextInput::make('seat_count')
+                                ->label('Number of Seats')
+                                ->numeric()
+                                ->integer()
+                                ->minValue(1)
+                                ->maxValue(50)
+                                ->default(1)
+                                ->required(),
                         ])
                         ->columns(2)
                         ->defaultItems(1)
                         ->minItems(1)
-                        ->addActionLabel('Add Another Seat / Member')
+                        ->addActionLabel('Add Another Member')
                         ->required(),
                 ])
                 ->action(function (array $data) {
@@ -676,13 +649,13 @@ class ManageSavingsScheme extends Page
                         }
 
                         $user = User::findOrFail($allocation['user_id']);
-                        $preferredSeat = filled($allocation['seat_number'] ?? null)
-                            ? (int) $allocation['seat_number']
-                            : null;
+                        $seatCount = max(1, (int) ($allocation['seat_count'] ?? 1));
 
-                        $seat = $service->allocateSeat($this->record, $user, $preferredSeat);
-                        $allocatedSeats[] = "#{$seat->seat_number} ({$user->name})";
-                        $allocatedCount++;
+                        for ($i = 0; $i < $seatCount; $i++) {
+                            $seat = $service->allocateSeat($this->record, $user);
+                            $allocatedSeats[] = "#{$seat->seat_number} ({$user->name})";
+                            $allocatedCount++;
+                        }
                     }
 
                     $seatList = implode(', ', $allocatedSeats);
