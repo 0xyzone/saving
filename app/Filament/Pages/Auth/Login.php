@@ -62,7 +62,10 @@ class Login extends BaseLogin
             ->placeholder('••••••••••••')
             ->prefixIcon(Heroicon::LockClosed)
             ->visible(fn (): bool => $this->isNumberVerified)
-            ->autofocus(fn (): bool => $this->isNumberVerified);
+            ->autofocus(fn (): bool => $this->isNumberVerified)
+            ->extraInputAttributes([
+                'wire:keydown.enter.prevent' => 'authenticate',
+            ], merge: true);
     }
 
     protected function getRememberFormComponent(): Component
@@ -103,14 +106,16 @@ class Login extends BaseLogin
             ->label('Continue')
             ->icon(Heroicon::ArrowRight)
             ->iconPosition('after')
-            ->action('verifyContactNumber');
+            ->submit('authenticate')
+            ->extraAttributes(['wire:key' => 'login-check-number']);
     }
 
     protected function getAuthenticateFormAction(): Action
     {
         return parent::getAuthenticateFormAction()
             ->icon(Heroicon::ArrowRightEndOnRectangle)
-            ->iconPosition('after');
+            ->iconPosition('after')
+            ->extraAttributes(['wire:key' => 'login-authenticate']);
     }
 
     protected function getUserModelClass(): string
