@@ -46,11 +46,13 @@
     }
 
     .fi-input-wrp select {
-        padding-top: 0.55rem !important;
-        padding-bottom: 0.55rem !important;
+        height: 2.75rem !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
         padding-inline-start: 0.875rem !important;
         padding-inline-end: 2.25rem !important;
-        line-height: 1.45 !important;
+        line-height: 2.75rem !important;
+        align-self: stretch !important;
     }
 
     .fi-select-input .fi-select-input-btn {

@@ -697,28 +697,70 @@ class ManageSavingsScheme extends Page
                 ->visible(fn () => SavingsSchemeResource::canShield('DeclareWinner')
                     && $this->record->periods()->where('status', 'completed')->where('payout_status', '!=', 'paid')->exists()
                 )
-                ->modalHeading('Settle Remaining Winner Balance')
-                ->modalDescription('Record a payment towards the winner net payout balance.')
+                ->modalHeading('Settle Remaining Recipient Balances')
+                ->modalDescription('Select one or more completed rounds to settle remaining disbursement balances.')
                 ->form([
-                    Select::make('scheme_period_id')
-                        ->label('Select Completed Round')
+                    Select::make('scheme_period_ids')
+                        ->label('Select Completed Round(s)')
+                        ->multiple()
                         ->options(function () {
                             return $this->record->periods()
                                 ->where('status', 'completed')
                                 ->where('payout_status', '!=', 'paid')
+                                ->orderBy('period_number')
                                 ->get()
                                 ->mapWithKeys(fn (SchemePeriod $p) => [
-                                    $p->id => "Round #{$p->period_number} — Winner: {$p->winnerUser?->name} (Balance: Rs. ".number_format($p->winner_balance_remaining, 2).')',
+                                    $p->id => "Round #{$p->period_number} — {$p->winnerUser?->name} (Bal: Rs. ".number_format($p->winner_balance_remaining, 2).')',
                                 ])
                                 ->toArray();
+                        })
+                        ->default(fn () => $this->record->periods()
+                            ->where('status', 'completed')
+                            ->where('payout_status', '!=', 'paid')
+                            ->pluck('id')
+                            ->toArray())
+                        ->afterStateUpdated(function (callable $get, callable $set): void {
+                            $ids = (array) ($get('scheme_period_ids') ?? []);
+                            if (count($ids) === 1) {
+                                $period = $this->record->periods()->find($ids[0]);
+                                if ($period) {
+                                    $set('amount', $period->winner_balance_remaining);
+                                }
+                            }
                         })
                         ->required()
                         ->live(),
 
+                    Placeholder::make('bulk_settlement_summary')
+                        ->label('Bulk Disbursement Summary')
+                        ->visible(fn (callable $get): bool => count((array) ($get('scheme_period_ids') ?? [])) > 1)
+                        ->content(function (callable $get): HtmlString {
+                            $ids = (array) ($get('scheme_period_ids') ?? []);
+                            $periods = $this->record->periods()->whereIn('id', $ids)->with('winnerUser')->orderBy('period_number')->get();
+                            $total = (float) $periods->sum(fn (SchemePeriod $p): float => $p->winner_balance_remaining);
+                            $lines = $periods->map(fn (SchemePeriod $p): string => "<div>Round #{$p->period_number} ({$p->winnerUser?->name}): <strong>Rs. ".number_format($p->winner_balance_remaining, 2).'</strong></div>')->implode('');
+
+                            return new HtmlString("
+                                <div class='p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs text-slate-800 dark:text-slate-200 space-y-1'>
+                                    <div class='font-semibold text-emerald-600 dark:text-emerald-400'>Settling {$periods->count()} rounds in full:</div>
+                                    {$lines}
+                                    <div class='pt-1 mt-1 border-t border-emerald-500/20 font-bold'>
+                                        Total Disbursement: Rs. ".number_format($total, 2).'
+                                    </div>
+                                </div>
+                            ');
+                        }),
+
                     TextInput::make('amount')
                         ->label('Settlement Amount (Rs.)')
                         ->numeric()
-                        ->required(),
+                        ->default(function () {
+                            $pending = $this->record->periods()->where('status', 'completed')->where('payout_status', '!=', 'paid')->get();
+
+                            return $pending->count() === 1 ? $pending->first()->winner_balance_remaining : null;
+                        })
+                        ->visible(fn (callable $get): bool => count((array) ($get('scheme_period_ids') ?? [])) <= 1)
+                        ->required(fn (callable $get): bool => count((array) ($get('scheme_period_ids') ?? [])) === 1),
 
                     Grid::make(['default' => 1, 'sm' => 3])
                         ->schema([
@@ -812,24 +854,39 @@ class ManageSavingsScheme extends Page
                         ->nullable(),
                 ])
                 ->action(function (array $data) {
-                    $period = $this->record->periods()->findOrFail($data['scheme_period_id']);
+                    $periodIds = (array) ($data['scheme_period_ids'] ?? []);
+                    $periods = $this->record->periods()->whereIn('id', $periodIds)->with('winnerUser')->orderBy('period_number')->get();
+                    $service = app(SavingsSchemeService::class);
+                    $totalSettled = 0.00;
+                    $isSingle = $periods->count() === 1;
 
-                    app(SavingsSchemeService::class)->settleWinnerPayout(
-                        $period,
-                        (float) $data['amount'],
-                        $data['payout_method'] ?? 'Cash',
-                        $data['payout_reference'] ?? null,
-                        $data['notes'] ?? null,
-                        $data['paid_at'] ?? now()
-                    );
+                    foreach ($periods as $period) {
+                        $amount = $isSingle && filled($data['amount'] ?? null)
+                            ? (float) $data['amount']
+                            : $period->winner_balance_remaining;
+
+                        if ($amount <= 0) {
+                            continue;
+                        }
+
+                        $service->settleWinnerPayout(
+                            $period,
+                            $amount,
+                            $data['payout_method'] ?? 'Cash',
+                            $data['payout_reference'] ?? null,
+                            $data['notes'] ?? null,
+                            $data['paid_at'] ?? now()
+                        );
+                        $totalSettled += $amount;
+                    }
 
                     Notification::make()
-                        ->title('Payout Settlement Recorded')
-                        ->body('Rs. '.number_format((float) $data['amount'], 2)." paid to {$period->winnerUser?->name} via {$data['payout_method']}.")
+                        ->title('Disbursement Settlement Recorded')
+                        ->body('Rs. '.number_format($totalSettled, 2)." settled across {$periods->count()} round(s) via ".($data['payout_method'] ?? 'Cash').'.')
                         ->success()
                         ->send();
 
-                    $this->record->refresh();
+                    $this->refreshSchemeRecord();
                 }),
         ];
     }

@@ -474,5 +474,19 @@ class SavingsSchemeResourceTest extends TestCase
         $this->assertEquals('paid', $period1->installments()->where('scheme_seat_id', $newSeat->id)->first()->status);
         $this->assertEquals('paid', $period2->installments()->where('scheme_seat_id', $newSeat->id)->first()->status);
         $this->assertEquals('pending', $period3->installments()->where('scheme_seat_id', $newSeat->id)->first()->status);
+
+        // Bulk-settle remaining balances for both Round #1 and Round #2 in a single action
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme])
+            ->callAction('settle_winner_payout', [
+                'scheme_period_ids' => [$period1->id, $period2->id],
+                'payout_method' => 'eSewa',
+                'paid_at' => '2026-11-17',
+            ])
+            ->assertHasNoErrors();
+
+        $this->assertEquals('paid', $period1->fresh()->payout_status);
+        $this->assertEquals(0.00, $period1->fresh()->winner_balance_remaining);
+        $this->assertEquals('paid', $period2->fresh()->payout_status);
+        $this->assertEquals(0.00, $period2->fresh()->winner_balance_remaining);
     }
 }
