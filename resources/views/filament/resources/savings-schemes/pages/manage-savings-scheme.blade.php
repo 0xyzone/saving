@@ -763,7 +763,7 @@
                                     Settlement Amount (Rs.) <span class="text-rose-500">*</span>
                                 </label>
                                 <input type="number" step="0.01" min="0.01" max="{{ $modalRemaining }}" wire:model="installmentPaymentAmount"
-                                    class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                    class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition">
                             </div>
 
                             <div>
@@ -771,7 +771,7 @@
                                     Settlement Date <span class="text-rose-500">*</span>
                                 </label>
                                 <input type="date" wire:model="installmentPaidAt"
-                                    class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                    class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition">
                             </div>
                         </div>
 
@@ -780,7 +780,7 @@
                                 Payment Method <span class="text-rose-500">*</span>
                             </label>
                             <select wire:model="installmentPaymentMethod"
-                                class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition">
                                 <option value="Cash">Cash</option>
                                 <option value="eSewa">eSewa (Digital Wallet)</option>
                                 <option value="Khalti">Khalti (Digital Wallet)</option>
@@ -794,7 +794,7 @@
                                 Transaction Reference / ID (Optional)
                             </label>
                             <input type="text" wire:model="installmentPaymentReference" placeholder="e.g. eSewa Txn ID, Bank UTR #"
-                                class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition">
                         </div>
 
                         <div>
@@ -802,7 +802,7 @@
                                 Notes (Optional)
                             </label>
                             <textarea wire:model="installmentNotes" rows="2" placeholder="Payment notes"
-                                class="w-full px-3 py-2 text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition"></textarea>
                         </div>
                     </div>
 
@@ -852,7 +852,7 @@
                                 Member Seat to Reserve <span class="text-rose-500">*</span>
                             </label>
                             <select wire:model="reservingSeatId"
-                                class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition">
                                 <option value="">-- Select Member Seat --</option>
                                 @foreach ($availableSeats as $s)
                                     <option value="{{ $s->id }}">
@@ -867,7 +867,7 @@
                                 Reason / Occasion
                             </label>
                             <textarea wire:model="reservingReason" rows="2" placeholder="e.g. Wedding in Magh, House renovation, Business expense"
-                                class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition"></textarea>
                         </div>
 
                         <div>
@@ -875,7 +875,7 @@
                                 Reservation Status
                             </label>
                             <select wire:model="reservingStatus"
-                                class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white">
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition">
                                 <option value="approved">Approved (Lock seat as reserved)</option>
                                 <option value="pending">Pending Application</option>
                             </select>
@@ -1030,7 +1030,7 @@
                             Reconciliation & Validation Notes (Optional)
                         </label>
                         <textarea wire:model="validationNotes" rows="2" placeholder="e.g. Verified bank receipts and signed vouchers by organizer."
-                            class="w-full text-sm rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition"></textarea>
                     </div>
 
                     {{-- Actions --}}
