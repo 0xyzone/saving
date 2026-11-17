@@ -80,9 +80,9 @@
         font-size: 0.875rem !important;
         line-height: 1.5 !important;
         border-radius: 0.75rem !important;
-        border: 1px solid rgba(148, 163, 184, 0.4) !important;
-        background-color: #ffffff !important;
-        color: #0f172a !important;
+        border: 1px solid rgba(148, 163, 184, 0.35) !important;
+        background-color: rgba(148, 163, 184, 0.08) !important;
+        color: inherit !important;
         transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
     }
 
@@ -91,11 +91,14 @@
         min-height: 2.75rem !important;
     }
 
+    html.dark .sp-custom-modal input:not([type="checkbox"]):not([type="radio"]),
+    html.dark .sp-custom-modal select,
+    html.dark .sp-custom-modal textarea,
     .dark .sp-custom-modal input:not([type="checkbox"]):not([type="radio"]),
     .dark .sp-custom-modal select,
     .dark .sp-custom-modal textarea {
-        border-color: rgba(255, 255, 255, 0.12) !important;
-        background-color: rgba(30, 41, 59, 0.8) !important;
+        border-color: rgba(255, 255, 255, 0.14) !important;
+        background-color: rgba(30, 41, 59, 0.85) !important;
         color: #f8fafc !important;
     }
 
@@ -195,6 +198,19 @@
         .fi-modal-footer-actions {
             flex-wrap: wrap !important;
             gap: 0.5rem !important;
+        }
+
+        .sp-round-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0.75rem !important;
+            padding: 1rem !important;
+        }
+
+        .sp-round-summary-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 0.625rem !important;
         }
 
         .fi-topbar {

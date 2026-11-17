@@ -393,44 +393,86 @@
                     ?? $activePeriod?->reservations->firstWhere('status', 'approved')?->user_id;
             @endphp
 
-            {{-- Mobile Card View for Installments --}}
-            <div class="sp-mobile-only space-y-3">
+            {{-- Card Grid View for Installments --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 @forelse ($groupedInstallments as $userId => $userInstallments)
                     @php
                         $firstInst = $userInstallments->first();
                         $member = $firstInst?->user;
                         $isRoundWinner = $activePeriodWinnerUserId !== null && (int) $userId === (int) $activePeriodWinnerUserId;
                         $seatNumbers = $userInstallments->map(fn ($i) => '#' . ($i->seat?->seat_number ?? '?'))->implode(', ');
+                        $hasOrgSeat = $userInstallments->contains(fn ($i) => $i->seat?->seat_number === 1);
+                        $baseSum = (float) $userInstallments->sum('base_amount');
+                        $interestSum = (float) $userInstallments->sum('interest_amount');
                         $totalDueSum = (float) $userInstallments->sum('total_due');
                         $paidSum = (float) $userInstallments->sum(fn ($i) => in_array($i->status, ['paid', 'auto_settled_winner'], true) ? ((float) $i->paid_amount > 0 ? (float) $i->paid_amount : (float) $i->total_due) : (float) $i->paid_amount);
                         $remainingSum = max(0.0, $totalDueSum - $paidSum);
                         $allAutoSettled = $userInstallments->every(fn ($i) => $i->status === 'auto_settled_winner');
                         $allPaid = $userInstallments->every(fn ($i) => $i->status === 'paid') || ($remainingSum <= 0 && ! $allAutoSettled);
                         $isPartial = ! $allPaid && ! $allAutoSettled && $paidSum > 0;
+                        $methods = $userInstallments->pluck('payment_method')->filter()->unique()->implode(', ');
                     @endphp
-                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-2.5">
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between space-y-3">
                         <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <div class="font-bold text-slate-900 dark:text-white">{{ $member?->name }}</div>
-                                <div class="text-xs text-slate-500">Seat {{ $seatNumbers }}</div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                        Seat {{ $seatNumbers }}
+                                    </span>
+                                    @if ($hasOrgSeat)
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-semibold">Org</span>
+                                    @endif
+                                </div>
+                                <div class="mt-2 font-bold text-slate-900 dark:text-white truncate">{{ $member?->name }}</div>
+                                <div class="text-xs text-slate-400 truncate">
+                                    @if (\Illuminate\Support\Facades\Auth::id() === $record->organizer_id)
+                                        {{ $member?->primary_contact_number ?: ($member?->username ? '@' . $member->username : '') }}
+                                    @else
+                                        {{ $member?->username ? '@' . $member->username : '' }}
+                                    @endif
+                                </div>
                             </div>
+
                             @if ($allPaid)
-                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Paid</span>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">Paid</span>
                             @elseif ($allAutoSettled)
-                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400">Auto-Settled</span>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">Auto-Settled</span>
                             @elseif ($isPartial)
-                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400">Partial</span>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 shrink-0">Partial</span>
                             @else
-                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">Pending</span>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">Pending</span>
                             @endif
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <div>
+                                <span class="text-slate-400">Base + Interest:</span>
+                                <div class="font-mono text-slate-700 dark:text-slate-300">
+                                    Rs. {{ number_format($baseSum, 2) }}
+                                    @if ($interestSum > 0)
+                                        <span class="text-amber-600 dark:text-amber-400">(+{{ number_format($interestSum) }})</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-slate-400">Total Due:</span>
+                                <div class="font-mono font-bold text-slate-900 dark:text-white">Rs. {{ number_format($totalDueSum, 2) }}</div>
+                                @if ($isPartial)
+                                    <div class="text-[11px] text-sky-600 dark:text-sky-400">
+                                        Paid: Rs. {{ number_format($paidSum, 2) }} · Bal: Rs. {{ number_format($remainingSum, 2) }}
+                                    </div>
+                                @endif
+                            </div>
                         </div>
 
                         <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
                             <div>
-                                <span class="text-slate-400">Due:</span>
-                                <strong class="font-mono text-slate-900 dark:text-white">Rs. {{ number_format($totalDueSum, 2) }}</strong>
-                                @if ($isPartial)
-                                    <span class="text-sky-500 ml-1">(Bal: Rs. {{ number_format($remainingSum, 2) }})</span>
+                                @if ($methods)
+                                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+                                        {{ $methods }}
+                                    </span>
+                                @else
+                                    <span class="text-slate-400">Unpaid</span>
                                 @endif
                             </div>
                             <div>
@@ -441,6 +483,8 @@
                                         class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition">
                                         {{ $isPartial ? 'Add Settlement' : 'Record Payment' }}
                                     </button>
+                                @elseif ($remainingSum > 0 && ! $allAutoSettled)
+                                    <span class="text-xs text-amber-500 italic">{{ $isPartial ? 'Partial' : 'Pending' }}</span>
                                 @else
                                     <span class="text-xs text-slate-400">Settled</span>
                                 @endif
@@ -448,125 +492,10 @@
                         </div>
                     </div>
                 @empty
-                    <div class="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-400">
+                    <div class="col-span-full p-6 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-sm text-slate-400">
                         No installments generated for this period yet.
                     </div>
                 @endforelse
-            </div>
-
-            <div class="sp-desktop-only overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
-                    <thead class="bg-slate-50 dark:bg-slate-800/50 text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
-                        <tr>
-                            <th class="px-4 py-3">Seat</th>
-                            <th class="px-4 py-3">Member</th>
-                            <th class="px-4 py-3 text-right">Base Amount</th>
-                            <th class="px-4 py-3 text-right">Interest</th>
-                            <th class="px-4 py-3 text-right font-bold text-slate-900 dark:text-white">Total Due</th>
-                            <th class="px-4 py-3 text-center">Status</th>
-                            <th class="px-4 py-3 text-center">Method</th>
-                            <th class="px-4 py-3 text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                        @php
-                            $groupedInstallments = $installments->groupBy('user_id');
-                            $activePeriodWinnerUserId = $activePeriod?->winner_user_id
-                                ?? ($activePeriod?->period_number === 1 ? $record->organizer_id : null)
-                                ?? $activePeriod?->reservations->firstWhere('status', 'approved')?->user_id;
-                        @endphp
-                        @forelse ($groupedInstallments as $userId => $userInstallments)
-                            @php
-                                $firstInst = $userInstallments->first();
-                                $member = $firstInst?->user;
-                                $isRoundWinner = $activePeriodWinnerUserId !== null && (int) $userId === (int) $activePeriodWinnerUserId;
-                                $seatNumbers = $userInstallments->map(fn ($i) => '#' . ($i->seat?->seat_number ?? '?'))->implode(', ');
-                                $hasOrgSeat = $userInstallments->contains(fn ($i) => $i->seat?->seat_number === 1);
-                                $baseSum = (float) $userInstallments->sum('base_amount');
-                                $interestSum = (float) $userInstallments->sum('interest_amount');
-                                $totalDueSum = (float) $userInstallments->sum('total_due');
-                                $paidSum = (float) $userInstallments->sum(fn ($i) => in_array($i->status, ['paid', 'auto_settled_winner'], true) ? ((float) $i->paid_amount > 0 ? (float) $i->paid_amount : (float) $i->total_due) : (float) $i->paid_amount);
-                                $remainingSum = max(0.0, $totalDueSum - $paidSum);
-                                $allAutoSettled = $userInstallments->every(fn ($i) => $i->status === 'auto_settled_winner');
-                                $allPaid = $userInstallments->every(fn ($i) => $i->status === 'paid') || ($remainingSum <= 0 && ! $allAutoSettled);
-                                $isPartial = ! $allPaid && ! $allAutoSettled && $paidSum > 0;
-                                $methods = $userInstallments->pluck('payment_method')->filter()->unique()->implode(', ');
-                            @endphp
-                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
-                                <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white">
-                                    Seat {{ $seatNumbers }}
-                                    @if ($hasOrgSeat)
-                                        <span class="ml-1 text-[10px] px-1 rounded bg-amber-500/20 text-amber-600">Org</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="font-medium text-slate-900 dark:text-white">{{ $member?->name }}</div>
-                                    <div class="text-xs text-slate-400">
-                                        @if (\Illuminate\Support\Facades\Auth::id() === $record->organizer_id)
-                                            {{ $member?->primary_contact_number ?: ($member?->username ? '@' . $member->username : '') }}
-                                        @else
-                                            {{ $member?->username ? '@' . $member->username : '' }}
-                                        @endif
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-right font-mono">
-                                    Rs. {{ number_format($baseSum, 2) }}
-                                </td>
-                                <td class="px-4 py-3 text-right font-mono text-amber-600 dark:text-amber-400">
-                                    {{ $interestSum > 0 ? '+Rs. ' . number_format($interestSum, 2) : '-' }}
-                                </td>
-                                <td class="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">
-                                    <div>Rs. {{ number_format($totalDueSum, 2) }}</div>
-                                    @if ($isPartial)
-                                        <div class="text-[11px] font-normal text-sky-600 dark:text-sky-400">
-                                            Paid: Rs. {{ number_format($paidSum, 2) }} · Bal: Rs. {{ number_format($remainingSum, 2) }}
-                                        </div>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    @if ($allPaid)
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Paid</span>
-                                    @elseif ($allAutoSettled)
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400">Auto-Settled (Winner)</span>
-                                    @elseif ($isPartial)
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400">Partial</span>
-                                    @else
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">Pending</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    @if ($methods)
-                                        <span class="px-2 py-0.5 rounded text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium">
-                                            {{ $methods }}
-                                        </span>
-                                    @else
-                                        <span class="text-xs text-slate-400">-</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-right">
-                                    @if ($isRoundWinner)
-                                        <span class="text-xs text-blue-500 font-medium">Winner (Auto-Deducted)</span>
-                                    @elseif ($remainingSum > 0 && ! $allAutoSettled && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
-                                        <button type="button" wire:click="promptUserInstallmentPayment({{ $userId }}, {{ $selectedPeriodId }})"
-                                            class="px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-500 transition">
-                                            {{ $isPartial ? 'Add Settlement' : 'Record Payment' }}
-                                        </button>
-                                    @elseif ($remainingSum > 0 && ! $allAutoSettled)
-                                        <span class="text-xs text-amber-500 italic">{{ $isPartial ? 'Partial' : 'Pending' }}</span>
-                                    @else
-                                        <span class="text-xs text-slate-400">Settled</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="8" class="px-4 py-6 text-center text-slate-400 italic">
-                                    No installments generated for this period yet.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
@@ -580,27 +509,33 @@
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                 <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto flex flex-col">
                     {{-- Modal Header --}}
-                    <div class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-10">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                                    Round #{{ $viewPeriod->period_number }} Summary
-                                </h3>
-                                @if ($viewPeriod->status === 'completed')
-                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Completed</span>
-                                @elseif ($viewPeriod->status === 'in_progress')
-                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">In Progress</span>
-                                @else
-                                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">Upcoming</span>
-                                @endif
+                    <div class="sp-round-header flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-10">
+                        <div class="flex items-start justify-between gap-2 w-full sm:w-auto">
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                                        Round #{{ $viewPeriod->period_number }} Summary
+                                    </h3>
+                                    @if ($viewPeriod->status === 'completed')
+                                        <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Completed</span>
+                                    @elseif ($viewPeriod->status === 'in_progress')
+                                        <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">In Progress</span>
+                                    @else
+                                        <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">Upcoming</span>
+                                    @endif
+                                </div>
+                                <div class="text-xs text-slate-500 mt-0.5">
+                                    Due Date: <strong class="text-slate-800 dark:text-slate-200">{{ $viewPeriod->formatted_due_date_bs }}</strong>
+                                    ({{ $viewPeriod->due_date ? $viewPeriod->due_date->format('M d, Y') . ' AD' : '-' }})
+                                </div>
                             </div>
-                            <div class="text-xs text-slate-500 mt-0.5">
-                                Due Date: <strong class="text-slate-800 dark:text-slate-200">{{ $viewPeriod->formatted_due_date_bs }}</strong>
-                                ({{ $viewPeriod->due_date ? $viewPeriod->due_date->format('M d, Y') . ' AD' : '-' }})
-                            </div>
+                            <button type="button" wire:click="closePeriodDetails"
+                                class="sp-mobile-only p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
                         </div>
 
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center flex-wrap gap-2">
                             @if ($viewPeriod->period_number > 1 && $viewPeriod->status !== 'completed')
                                 <button type="button" wire:click="openReserveModal({{ $viewPeriod->id }})"
                                     class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition flex items-center gap-1.5 shadow-sm">
@@ -614,14 +549,14 @@
                             </button>
 
                             <button type="button" wire:click="closePeriodDetails"
-                                class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                                class="sp-desktop-only p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>
                     </div>
 
                     {{-- Modal Content --}}
-                    <div class="p-6 space-y-6">
+                    <div class="p-4 sm:p-6 space-y-5">
                         @if ($viewPeriod->is_validated)
                             <div class="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
                                 <div class="flex items-center gap-2.5">
@@ -648,7 +583,7 @@
                             </div>
                         @endif
                         {{-- 4 Metric Cards --}}
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div class="sp-round-summary-grid grid grid-cols-2 lg:grid-cols-4 gap-3">
                             <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-800">
                                 <div class="text-xs text-slate-500">Gross Pool</div>
                                 <div class="mt-1 text-lg font-bold font-mono text-slate-900 dark:text-white">
@@ -728,14 +663,81 @@
 
                         {{-- Installments Table for this Period --}}
                         <div class="space-y-2">
-                            <h4 class="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                            <h4 class="text-sm font-bold text-slate-900 dark:text-white flex flex-wrap items-center justify-between gap-1">
                                 <span>Round #{{ $viewPeriod->period_number }} Member Installments Ledger</span>
                                 <span class="text-xs font-normal text-slate-500">
                                     Collected: <strong>Rs. {{ number_format($viewPeriod->total_collected_amount, 2) }}</strong>
                                 </span>
                             </h4>
 
-                            <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                            @php
+                                $viewGroupedInstallments = $viewPeriod->installments->groupBy('user_id');
+                                $viewPeriodWinnerUserId = $viewPeriod->winner_user_id
+                                    ?? ($viewPeriod->period_number === 1 ? $record->organizer_id : null)
+                                    ?? $viewPeriod->reservations->firstWhere('status', 'approved')?->user_id;
+                            @endphp
+
+                            {{-- Mobile Card View inside Modal 1 --}}
+                            <div class="sp-mobile-only space-y-2.5">
+                                @forelse ($viewGroupedInstallments as $userId => $userInsts)
+                                    @php
+                                        $firstInst = $userInsts->first();
+                                        $member = $firstInst?->user;
+                                        $isViewWinner = $viewPeriodWinnerUserId !== null && (int) $userId === (int) $viewPeriodWinnerUserId;
+                                        $seatNumbers = $userInsts->map(fn ($i) => '#' . ($i->seat?->seat_number ?? '?'))->implode(', ');
+                                        $totalDueSum = (float) $userInsts->sum('total_due');
+                                        $paidSum = (float) $userInsts->sum(fn ($i) => in_array($i->status, ['paid', 'auto_settled_winner'], true) ? ((float) $i->paid_amount > 0 ? (float) $i->paid_amount : (float) $i->total_due) : (float) $i->paid_amount);
+                                        $remainingSum = max(0.0, $totalDueSum - $paidSum);
+                                        $allAutoSettled = $userInsts->every(fn ($i) => $i->status === 'auto_settled_winner');
+                                        $allPaid = $userInsts->every(fn ($i) => $i->status === 'paid') || ($remainingSum <= 0 && ! $allAutoSettled);
+                                        $isPartial = ! $allPaid && ! $allAutoSettled && $paidSum > 0;
+                                    @endphp
+                                    <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-2 text-xs">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <div>
+                                                <div class="font-bold text-slate-900 dark:text-white">{{ $member?->name ?? 'Unassigned' }}</div>
+                                                <div class="text-[11px] text-slate-500">Seat {{ $seatNumbers }}</div>
+                                            </div>
+                                            @if ($allPaid)
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600">Paid</span>
+                                            @elseif ($allAutoSettled)
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-600">Auto-Settled</span>
+                                            @elseif ($isPartial)
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/10 text-sky-600">Partial</span>
+                                            @else
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600">Pending</span>
+                                            @endif
+                                        </div>
+
+                                        <div class="flex items-center justify-between pt-2 border-t border-slate-200/70 dark:border-slate-700/60">
+                                            <div class="font-mono font-bold text-slate-900 dark:text-white">
+                                                Rs. {{ number_format($totalDueSum, 2) }}
+                                                @if ($isPartial)
+                                                    <span class="font-normal text-sky-500 ml-1">(Bal: {{ number_format($remainingSum, 2) }})</span>
+                                                @endif
+                                            </div>
+                                            <div>
+                                                @if ($isViewWinner)
+                                                    <span class="text-blue-500 text-[10px] font-medium">Winner (Auto-Deducted)</span>
+                                                @elseif ($remainingSum > 0 && ! $allAutoSettled && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
+                                                    <button type="button" wire:click="promptUserInstallmentPayment({{ $userId }}, {{ $viewPeriod->id }})"
+                                                        class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-500">
+                                                        {{ $isPartial ? '+ Settle' : 'Settle' }}
+                                                    </button>
+                                                @else
+                                                    <span class="text-slate-400 text-[10px]">Settled</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-400 italic">
+                                        No installments generated.
+                                    </div>
+                                @endforelse
+                            </div>
+
+                            <div class="sp-desktop-only overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
                                 <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300">
                                     <thead class="bg-slate-50 dark:bg-slate-800/50 font-semibold uppercase text-slate-500 border-b border-slate-200 dark:border-slate-800">
                                         <tr>
