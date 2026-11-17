@@ -62,6 +62,9 @@ class EditContactAndAddress extends BaseProfileForm
                             ->label('Username')
                             ->placeholder('e.g. johndoe')
                             ->alphaDash()
+                            ->disabled()
+                            ->default(fn() => Auth()->user()?->username)
+                            ->prefix('@')
                             ->nullable()
                             ->unique($this->user::class, 'username', ignorable: $this->user)
                             ->maxLength(255),
@@ -85,7 +88,7 @@ class EditContactAndAddress extends BaseProfileForm
                             ->nullable()
                             ->columnSpanFull(),
                     ])
-                    ->columns(['default' => 1, 'sm' => 2]),
+                    ->columns(['default' => 1, 'sm' => 3]),
 
                 Section::make('Payment Methods')
                     ->aside()
