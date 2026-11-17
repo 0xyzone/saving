@@ -631,12 +631,15 @@
                             // Net Payout preview logic
                             if ($isRoundCompleted) {
                                 $netPayoutDisplay = (float) $viewPeriod->net_payout_amount;
+                                $pendingCollection = (float) $viewPeriod->collection_balance_remaining;
                             } else {
                                 $reservedSeat = $viewPeriod->approvedReservation?->seat;
                                 $candidateDues = $reservedSeat
                                     ? (float) $viewPeriod->installments->where('user_id', $reservedSeat->user_id)->sum('total_due')
                                     : (float) $record->installment_amount;
                                 $netPayoutDisplay = max(0.0, $grossPoolDisplay - $maslandaDeduction - $candidateDues);
+                                $targetPoolEst = max(0.0, $grossPoolDisplay - $candidateDues);
+                                $pendingCollection = max(0.0, $targetPoolEst - (float) $viewPeriod->total_collected_amount);
                             }
                         @endphp
                         {{-- 4 Metric Cards --}}
@@ -669,14 +672,15 @@
                                 </div>
                             </div>
 
-                            <div class="p-3.5 {{ ($isRoundCompleted && $viewPeriod->winner_balance_remaining > 0) ? 'bg-amber-500/10 border-amber-500/20' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200/60 dark:border-slate-800' }} rounded-xl border">
-                                <div class="text-xs {{ ($isRoundCompleted && $viewPeriod->winner_balance_remaining > 0) ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-500' }}">Winner Balance Due</div>
-                                <div class="mt-1 text-lg font-bold font-mono {{ ($isRoundCompleted && $viewPeriod->winner_balance_remaining > 0) ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white' }}">
-                                    @if ($isRoundCompleted)
-                                        Rs. {{ number_format((float) $viewPeriod->winner_balance_remaining, 2) }}
-                                    @else
-                                        <span class="text-xs font-normal text-slate-400 italic">Pending Winner</span>
+                            <div class="p-3.5 {{ ($pendingCollection > 0) ? 'bg-amber-500/10 border-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/20' }} rounded-xl border">
+                                <div class="flex items-center justify-between">
+                                    <div class="text-xs {{ ($pendingCollection > 0) ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-emerald-600 dark:text-emerald-400 font-semibold' }}">Pending Collection</div>
+                                    @if (! $isRoundCompleted)
+                                        <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">Est.</span>
                                     @endif
+                                </div>
+                                <div class="mt-1 text-lg font-bold font-mono {{ ($pendingCollection > 0) ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400' }}">
+                                    Rs. {{ number_format((float) $pendingCollection, 2) }}
                                 </div>
                             </div>
                         </div>
