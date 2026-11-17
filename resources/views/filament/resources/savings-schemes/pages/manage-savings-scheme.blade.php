@@ -133,29 +133,29 @@
                 <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
                     <thead class="bg-slate-50 dark:bg-slate-800/50 text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                         <tr>
-                            <th class="px-4 py-3">Round</th>
-                            <th class="px-4 py-3">Due Date (Nepali BS)</th>
-                            <th class="px-4 py-3">Winner</th>
-                            <th class="px-4 py-3">Reservation</th>
-                            <th class="px-4 py-3 text-right">Gross Pool</th>
-                            <th class="px-4 py-3 text-right">Maslanda Deposit</th>
-                            <th class="px-4 py-3 text-right font-bold text-slate-900 dark:text-white">Net Payout</th>
-                            <th class="px-4 py-3 text-right">Paid / Balance</th>
-                            <th class="px-4 py-3 text-center">Status</th>
-                            <th class="px-4 py-3 text-center">Action</th>
+                            <th class="px-3 py-3 whitespace-nowrap">Round</th>
+                            <th class="px-3 py-3 whitespace-nowrap">Due Date (BS)</th>
+                            <th class="px-3 py-3 whitespace-nowrap">Winner</th>
+                            <th class="px-3 py-3 whitespace-nowrap">Reservation</th>
+                            <th class="px-3 py-3 text-right whitespace-nowrap">Gross Pool</th>
+                            <th class="px-3 py-3 text-right whitespace-nowrap">Maslanda</th>
+                            <th class="px-3 py-3 text-right whitespace-nowrap font-bold text-slate-900 dark:text-white">Net Payout</th>
+                            <th class="px-3 py-3 text-right whitespace-nowrap">Paid / Bal</th>
+                            <th class="px-3 py-3 text-center whitespace-nowrap">Status</th>
+                            <th class="px-3 py-3 text-center whitespace-nowrap">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         @foreach ($record->periods as $period)
                             <tr wire:click="openPeriodDetails({{ $period->id }})"
                                 class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition group {{ $period->period_number === $record->current_period ? 'bg-amber-500/5' : '' }}">
-                                <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                                <td class="px-3 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                                     Round #{{ $period->period_number }}
                                     @if ($period->period_number === 1)
                                         <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-normal">Organizer</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap">
+                                <td class="px-3 py-3 whitespace-nowrap">
                                     <div class="font-medium text-slate-900 dark:text-white">
                                         {{ $period->formatted_due_date_bs }}
                                     </div>
@@ -163,7 +163,7 @@
                                         {{ $period->due_date ? $period->due_date->format('M d, Y') . ' AD' : '-' }}
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 font-medium">
+                                <td class="px-3 py-3 font-medium whitespace-nowrap">
                                     @if ($period->winnerUser)
                                         <div class="flex items-center gap-1.5">
                                             <span class="text-amber-500">🏆</span>
@@ -174,25 +174,25 @@
                                         <div class="flex items-center gap-1.5">
                                             <span class="text-amber-500">🏆</span>
                                             <span class="text-slate-900 dark:text-white">{{ $record->organizer?->name ?? 'Organizer' }}</span>
-                                            <span class="text-xs text-amber-600 dark:text-amber-400 font-medium">(Seat #1 · Reserved)</span>
+                                            <span class="text-xs text-amber-600 dark:text-amber-400 font-medium">(Seat #1)</span>
                                         </div>
                                     @else
                                         <span class="text-slate-400 italic">Not drawn yet</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="px-3 py-3 whitespace-nowrap">
                                     @php
                                         $approvedRes = $period->reservations->firstWhere('status', 'approved');
                                         $pendingResCount = $period->reservations->where('status', 'pending')->count();
                                     @endphp
 
                                     @if ($approvedRes)
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 whitespace-nowrap">
                                             <span>🔖</span>
                                             <span>Seat #{{ $approvedRes->seat?->seat_number ?? '?' }}: {{ $approvedRes->user?->name }}</span>
                                         </span>
                                     @elseif ($pendingResCount > 0)
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 whitespace-nowrap">
                                             <span>⏳</span>
                                             <span>{{ $pendingResCount }} Pending</span>
                                         </span>
@@ -202,7 +202,7 @@
                                         <span class="text-xs text-slate-400 italic">Open</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-right font-mono">
+                                <td class="px-3 py-3 text-right font-mono whitespace-nowrap">
                                     @if ($period->status === 'completed')
                                         Rs. {{ number_format((float) $period->gross_pool_amount, 2) }}
                                     @elseif ($period->period_number === 1)
@@ -211,7 +211,7 @@
                                         <span class="text-slate-400">-</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-right font-mono text-rose-500">
+                                <td class="px-3 py-3 text-right font-mono text-rose-500 whitespace-nowrap">
                                     @if ($period->status === 'completed')
                                         -Rs. {{ number_format((float) $period->khaja_kharcha_deducted, 2) }}
                                     @elseif ($period->period_number === 1)
@@ -220,7 +220,7 @@
                                         <span class="text-slate-400">-</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                <td class="px-3 py-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                                     @if ($period->status === 'completed')
                                         Rs. {{ number_format((float) $period->net_payout_amount, 2) }}
                                     @elseif ($period->period_number === 1)
@@ -229,7 +229,7 @@
                                         <span class="text-slate-400">-</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-right">
+                                <td class="px-3 py-3 text-right whitespace-nowrap">
                                     @if ($period->status === 'completed')
                                         <div class="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
                                             Rs. {{ number_format((float) $period->paid_amount, 2) }}
