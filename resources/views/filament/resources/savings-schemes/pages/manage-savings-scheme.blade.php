@@ -531,7 +531,7 @@
         @endphp
         @if ($viewPeriod)
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto flex flex-col">
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto flex flex-col">
                     {{-- Modal Header --}}
                     <div class="sp-round-header flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-10">
                         <div class="flex items-start justify-between gap-2 w-full sm:w-auto">
@@ -809,14 +809,14 @@
                                 <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300">
                                     <thead class="bg-slate-50 dark:bg-slate-800/50 font-semibold uppercase text-slate-500 border-b border-slate-200 dark:border-slate-800">
                                         <tr>
-                                            <th class="px-3 py-2.5">Seat</th>
-                                            <th class="px-3 py-2.5">Member</th>
-                                            <th class="px-3 py-2.5 text-right">Base</th>
-                                            <th class="px-3 py-2.5 text-right">Interest</th>
-                                            <th class="px-3 py-2.5 text-right font-bold text-slate-900 dark:text-white">Total Due</th>
-                                            <th class="px-3 py-2.5 text-center">Status</th>
-                                            <th class="px-3 py-2.5 text-center">Method</th>
-                                            <th class="px-3 py-2.5 text-right">Action</th>
+                                            <th class="px-3 py-2.5 whitespace-nowrap">Seat</th>
+                                            <th class="px-3 py-2.5 whitespace-nowrap">Member</th>
+                                            <th class="px-3 py-2.5 text-right whitespace-nowrap">Base</th>
+                                            <th class="px-3 py-2.5 text-right whitespace-nowrap">Interest</th>
+                                            <th class="px-3 py-2.5 text-right whitespace-nowrap font-bold text-slate-900 dark:text-white">Total Due</th>
+                                            <th class="px-3 py-2.5 text-center whitespace-nowrap">Status</th>
+                                            <th class="px-3 py-2.5 text-center whitespace-nowrap">Method</th>
+                                            <th class="px-3 py-2.5 text-right whitespace-nowrap">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -843,27 +843,27 @@
                                                 $methods = $userInsts->pluck('payment_method')->filter()->unique()->implode(', ');
                                             @endphp
                                             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                                                <td class="px-3 py-2.5 font-semibold text-slate-900 dark:text-white">
+                                                <td class="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                                                     Seat {{ $seatNumbers }}
                                                 </td>
-                                                <td class="px-3 py-2.5">
+                                                <td class="px-3 py-2.5 whitespace-nowrap">
                                                     {{ $member?->name ?? 'Unassigned' }}
                                                 </td>
-                                                <td class="px-3 py-2.5 text-right font-mono">
+                                                <td class="px-3 py-2.5 text-right font-mono whitespace-nowrap">
                                                     Rs. {{ number_format($baseSum, 2) }}
                                                 </td>
-                                                <td class="px-3 py-2.5 text-right font-mono text-amber-600">
+                                                <td class="px-3 py-2.5 text-right font-mono text-amber-600 whitespace-nowrap">
                                                     {{ $interestSum > 0 ? '+Rs. ' . number_format($interestSum, 2) : '-' }}
                                                 </td>
-                                                <td class="px-3 py-2.5 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                                <td class="px-3 py-2.5 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                                                     <div>Rs. {{ number_format($totalDueSum, 2) }}</div>
                                                     @if ($isPartial)
-                                                        <div class="text-[10px] font-normal text-sky-600 dark:text-sky-400">
+                                                        <div class="text-[10px] font-normal text-sky-600 dark:text-sky-400 whitespace-nowrap">
                                                             Paid: Rs. {{ number_format($paidSum, 2) }} · Bal: Rs. {{ number_format($remainingSum, 2) }}
                                                         </div>
                                                     @endif
                                                 </td>
-                                                <td class="px-3 py-2.5 text-center">
+                                                <td class="px-3 py-2.5 text-center whitespace-nowrap">
                                                     @if ($allPaid)
                                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600">Paid</span>
                                                     @elseif ($allAutoSettled)
@@ -874,7 +874,7 @@
                                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600">Pending</span>
                                                     @endif
                                                 </td>
-                                                <td class="px-3 py-2.5 text-center">
+                                                <td class="px-3 py-2.5 text-center whitespace-nowrap">
                                                     @if ($methods)
                                                         <span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium">
                                                             {{ $methods }}
@@ -883,7 +883,7 @@
                                                         <span class="text-slate-400">-</span>
                                                     @endif
                                                 </td>
-                                                <td class="px-3 py-2.5 text-right">
+                                                <td class="px-3 py-2.5 text-right whitespace-nowrap">
                                                     @if ($isViewWinner)
                                                         <span class="text-blue-500 text-[10px] font-medium">Winner (Auto-Deducted)</span>
                                                     @elseif ($remainingSum > 0 && ! $allAutoSettled && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
