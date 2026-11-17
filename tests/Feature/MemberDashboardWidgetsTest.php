@@ -20,7 +20,7 @@ class MemberDashboardWidgetsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_users_overview_widget_is_visible_only_to_super_admin(): void
+    public function test_users_overview_widget_shows_total_users_only_to_super_admin_with_dynamic_columns(): void
     {
         $superAdminRole = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'panel_user', 'guard_name' => 'web']);
@@ -39,10 +39,18 @@ class MemberDashboardWidgetsTest extends TestCase
         ]);
 
         $this->actingAs($admin);
-        $this->assertTrue(UsersOverview::canView());
+        Livewire::test(UsersOverview::class)
+            ->assertSuccessful()
+            ->assertSee('Total Users')
+            ->assertSee('Active Payment Methods')
+            ->assertSee('Preferred Payment Methods');
 
         $this->actingAs($regular);
-        $this->assertFalse(UsersOverview::canView());
+        Livewire::test(UsersOverview::class)
+            ->assertSuccessful()
+            ->assertDontSee('Total Users')
+            ->assertSee('Active Payment Methods')
+            ->assertSee('Preferred Payment Methods');
     }
 
     public function test_member_widgets_are_hidden_for_users_without_ongoing_scheme_seats(): void

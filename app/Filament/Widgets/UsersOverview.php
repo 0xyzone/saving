@@ -13,31 +13,46 @@ class UsersOverview extends StatsOverviewWidget
 {
     protected static ?int $sort = 1;
 
-    public static function canView(): bool
+    protected function isSuperAdmin(): bool
     {
         $user = Auth::user();
 
         return $user instanceof User && $user->hasRole(Utils::getSuperAdminName());
     }
 
-    protected function getStats(): array
+    /**
+     * @return int|array<string, int|null>
+     */
+    protected function getColumns(): int|array
     {
         return [
-            Stat::make('Total Users', User::count())
+            'default' => 1,
+            'md' => $this->isSuperAdmin() ? 3 : 2,
+        ];
+    }
+
+    protected function getStats(): array
+    {
+        $stats = [];
+
+        if ($this->isSuperAdmin()) {
+            $stats[] = Stat::make('Total Users', User::count())
                 ->description('All registered users')
                 ->descriptionIcon('heroicon-m-users')
                 ->chart([3, 5, 7, 10, 12, User::count()])
-                ->color('success'),
+                ->color('success');
+        }
 
-            Stat::make('Active Payment Methods', UserPaymentOption::where('is_active', true)->count())
-                ->description('Total active payment accounts')
-                ->descriptionIcon('heroicon-m-credit-card')
-                ->color('primary'),
+        $stats[] = Stat::make('Active Payment Methods', UserPaymentOption::where('is_active', true)->count())
+            ->description('Total active payment accounts')
+            ->descriptionIcon('heroicon-m-credit-card')
+            ->color('primary');
 
-            Stat::make('Preferred Payment Methods', UserPaymentOption::where('is_preferred', true)->count())
-                ->description('Total designated preferred methods')
-                ->descriptionIcon('heroicon-m-check-badge')
-                ->color('info'),
-        ];
+        $stats[] = Stat::make('Preferred Payment Methods', UserPaymentOption::where('is_preferred', true)->count())
+            ->description('Total designated preferred methods')
+            ->descriptionIcon('heroicon-m-check-badge')
+            ->color('info');
+
+        return $stats;
     }
 }
