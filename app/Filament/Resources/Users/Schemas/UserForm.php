@@ -79,6 +79,8 @@ class UserForm
                         FileUpload::make('avatar_url')
                             ->label('Filament Avatar')
                             ->image()
+                            ->disk('public')
+                            ->visibility('public')
                             ->directory('avatars')
                             ->avatar()
                             ->imageEditor()
@@ -122,6 +124,8 @@ class UserForm
                                 FileUpload::make('qr_code_image')
                                     ->label('QR Code')
                                     ->image()
+                                    ->disk('public')
+                                    ->visibility('public')
                                     ->directory('payment_qrs')
                                     ->imageEditor()
                                     ->nullable(),

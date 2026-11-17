@@ -153,10 +153,9 @@ class SavingsSchemeService
             'total_periods' => max($scheme->periods()->count(), $totalSeats),
         ]);
 
-        // If there is an active current period, refresh installments for the newly added seat
-        $activePeriod = $scheme->periods()->where('period_number', $scheme->current_period)->first();
-        if ($activePeriod) {
-            $this->generatePeriodInstallments($scheme, $activePeriod);
+        // Refresh installments across all existing periods so new seats/members appear across past & current rounds
+        foreach ($scheme->periods()->orderBy('period_number')->get() as $period) {
+            $this->generatePeriodInstallments($scheme, $period);
         }
     }
 

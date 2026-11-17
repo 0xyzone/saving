@@ -412,8 +412,25 @@ class SavingsSchemeCalculationTest extends TestCase
         $this->assertCount(3, $scheme->seats);
         $this->assertCount(3, $scheme->periods);
 
-        // Period 1 should now have installments for all 3 seats
+        // Period 1 and Period 2 should now have installments for all 3 seats
         $period1 = $scheme->periods()->where('period_number', 1)->first();
+        $period2 = $scheme->periods()->where('period_number', 2)->first();
         $this->assertCount(3, $period1->installments);
+        $this->assertCount(3, $period2->installments);
+
+        // Verify member2 has an installment in Period 1 and can settle it
+        $member2Period1Inst = $period1->installments()->where('user_id', $member2->id)->first();
+        $this->assertNotNull($member2Period1Inst);
+        $this->assertEquals(5000, $member2Period1Inst->total_due);
+
+        $settleResult = $this->service->settleUserPeriodInstallments(
+            $scheme,
+            $period1,
+            $member2->id,
+            5000,
+            'Cash'
+        );
+        $this->assertEquals(5000, $settleResult['applied']);
+        $this->assertEquals('paid', $member2Period1Inst->fresh()->status);
     }
 }
