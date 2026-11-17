@@ -784,8 +784,8 @@
                                                 <div x-show="qrOpen"
                                                     x-cloak
                                                     @click="closeQr()"
-                                                    class="fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-300"
-                                                    :style="qrVisible ? 'background-color: rgba(2, 6, 23, 0.8); backdrop-filter: blur(8px);' : 'background-color: rgba(2, 6, 23, 0); backdrop-filter: blur(0px);'">
+                                                    class="fixed inset-0 flex items-center justify-center p-4 transition-all duration-300"
+                                                    :style="`z-index: 99999; ${qrVisible ? 'background-color: rgba(2, 6, 23, 0.8); backdrop-filter: blur(8px);' : 'background-color: rgba(2, 6, 23, 0); backdrop-filter: blur(0px);'}`">
                                                     <div @click.stop
                                                         class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-5 max-w-sm w-full space-y-4"
                                                         :style="qrVisible
