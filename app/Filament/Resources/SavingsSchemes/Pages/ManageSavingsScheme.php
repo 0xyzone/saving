@@ -631,7 +631,7 @@ class ManageSavingsScheme extends Page
                                 ->default(1)
                                 ->required(),
                         ])
-                        ->columns(2)
+                        ->columns(['default' => 1, 'sm' => 2])
                         ->defaultItems(1)
                         ->minItems(1)
                         ->addActionLabel('Add Another Member')

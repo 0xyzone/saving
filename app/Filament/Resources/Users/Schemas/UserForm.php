@@ -90,7 +90,7 @@ class UserForm
                             ->rows(3)
                             ->columnSpanFull(),
                     ])
-                    ->columns(2),
+                    ->columns(['default' => 1, 'md' => 2]),
 
                 Section::make('Payment Options')
                     ->description('Multiple bank accounts and digital wallets for this user')
@@ -134,7 +134,7 @@ class UserForm
                                     ->label('Active')
                                     ->default(true),
                             ])
-                            ->columns(2)
+                            ->columns(['default' => 1, 'sm' => 2])
                             ->collapsible()
                             ->itemLabel(fn (array $state): ?string => ($state['provider_name'] ?? $state['type'] ?? 'Payment Option').' - '.($state['account_number'] ?? ''))
                             ->defaultItems(0)

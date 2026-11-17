@@ -88,7 +88,7 @@ class UsersTable
                                     ->color('gray')
                                     ->size('xs')
                                     ->placeholder('No email registered'),
-                            ])->extraAttributes(['class' => 'justify-between gap-2']),
+                            ])->from('sm')->extraAttributes(['class' => 'justify-between gap-2']),
 
                             TextColumn::make('home_address')
                                 ->icon('heroicon-m-map-pin')

@@ -74,7 +74,7 @@ class SavingsSchemesTable
                                     ->formatStateUsing(fn ($state) => 'Rs. '.number_format((float) $state).' maslanda')
                                     ->color('danger')
                                     ->size('xs'),
-                            ])->extraAttributes(['class' => 'justify-between gap-2']),
+                            ])->from('sm')->extraAttributes(['class' => 'justify-between gap-2']),
 
                             Split::make([
                                 TextColumn::make('progress')
@@ -90,7 +90,7 @@ class SavingsSchemesTable
                                     ->description(fn (SavingsScheme $record) => $record->start_date ? $record->start_date->format('M d, Y').' AD' : null)
                                     ->color('gray')
                                     ->size('xs'),
-                            ])->extraAttributes(['class' => 'justify-between gap-2']),
+                            ])->from('sm')->extraAttributes(['class' => 'justify-between gap-2']),
                         ])->space(2),
                     ])->collapsible(),
                 ])->space(3),

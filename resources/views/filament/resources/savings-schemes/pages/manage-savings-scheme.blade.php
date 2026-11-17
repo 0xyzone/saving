@@ -57,7 +57,79 @@
 
         {{-- TAB 1: Periods & Winners --}}
         <div x-show="activeTab === 'periods'" class="space-y-3">
-            <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            {{-- Mobile Card View --}}
+            <div class="sp-mobile-only space-y-3">
+                @foreach ($record->periods as $period)
+                    <div wire:click="openPeriodDetails({{ $period->id }})"
+                        class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-3 cursor-pointer {{ $period->period_number === $record->current_period ? 'ring-1 ring-amber-500/40' : '' }}">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <div class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                    <span>Round #{{ $period->period_number }}</span>
+                                    @if ($period->period_number === 1)
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-normal">Organizer</span>
+                                    @endif
+                                </div>
+                                <div class="text-xs text-slate-500 mt-0.5">
+                                    {{ $period->formatted_due_date_bs }}
+                                    @if ($period->due_date)
+                                        ({{ $period->due_date->format('M d, Y') }})
+                                    @endif
+                                </div>
+                            </div>
+                            <span @class([
+                                'px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0',
+                                'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' => $period->status === 'completed',
+                                'bg-amber-500/10 text-amber-600 dark:text-amber-400' => $period->status === 'in_progress',
+                                'bg-slate-100 text-slate-500 dark:bg-slate-800' => ! in_array($period->status, ['completed', 'in_progress'], true),
+                            ])>
+                                {{ ucwords(str_replace('_', ' ', $period->status)) }}
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <div>
+                                <span class="text-slate-400">Winner:</span>
+                                <div class="font-medium text-slate-800 dark:text-slate-200 truncate">
+                                    @if ($period->winnerUser)
+                                        {{ $period->winnerUser->name }} (Seat #{{ $period->winningSeat?->seat_number }})
+                                    @elseif ($period->period_number === 1)
+                                        {{ $record->organizer?->name ?? 'Organizer' }} (Seat #1)
+                                    @else
+                                        Not drawn yet
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-slate-400">Net Payout:</span>
+                                <div class="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                    {{ $period->status === 'completed' ? 'Rs. ' . number_format((float) $period->net_payout_amount, 2) : '-' }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800" @click.stop>
+                            <button type="button" wire:click="openPeriodDetails({{ $period->id }})"
+                                class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                View
+                            </button>
+                            @if ($period->status !== 'completed' && $period->period_number !== 1 && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageSeats'))
+                                <button type="button" wire:click="openReserveModal({{ $period->id }})"
+                                    class="px-2.5 py-1 text-xs font-medium rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                                    Reserve
+                                </button>
+                            @endif
+                            <button type="button" wire:click="openValidateRound({{ $period->id }})"
+                                class="px-2.5 py-1 text-xs font-medium rounded-lg {{ $period->is_validated ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400' }}">
+                                {{ $period->is_validated ? '✓ Validated' : '⚖️ Validate' }}
+                            </button>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Desktop Table View --}}
+            <div class="sp-desktop-only overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                 <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
                     <thead class="bg-slate-50 dark:bg-slate-800/50 text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                         <tr>
@@ -315,9 +387,74 @@
             @php
                 $activePeriod = $record->periods->firstWhere('id', $selectedPeriodId) ?? $record->periods->first();
                 $installments = $activePeriod ? $activePeriod->installments()->with(['seat.user', 'user'])->get() : collect();
+                $groupedInstallments = $installments->groupBy('user_id');
+                $activePeriodWinnerUserId = $activePeriod?->winner_user_id
+                    ?? ($activePeriod?->period_number === 1 ? $record->organizer_id : null)
+                    ?? $activePeriod?->reservations->firstWhere('status', 'approved')?->user_id;
             @endphp
 
-            <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            {{-- Mobile Card View for Installments --}}
+            <div class="sp-mobile-only space-y-3">
+                @forelse ($groupedInstallments as $userId => $userInstallments)
+                    @php
+                        $firstInst = $userInstallments->first();
+                        $member = $firstInst?->user;
+                        $isRoundWinner = $activePeriodWinnerUserId !== null && (int) $userId === (int) $activePeriodWinnerUserId;
+                        $seatNumbers = $userInstallments->map(fn ($i) => '#' . ($i->seat?->seat_number ?? '?'))->implode(', ');
+                        $totalDueSum = (float) $userInstallments->sum('total_due');
+                        $paidSum = (float) $userInstallments->sum(fn ($i) => in_array($i->status, ['paid', 'auto_settled_winner'], true) ? ((float) $i->paid_amount > 0 ? (float) $i->paid_amount : (float) $i->total_due) : (float) $i->paid_amount);
+                        $remainingSum = max(0.0, $totalDueSum - $paidSum);
+                        $allAutoSettled = $userInstallments->every(fn ($i) => $i->status === 'auto_settled_winner');
+                        $allPaid = $userInstallments->every(fn ($i) => $i->status === 'paid') || ($remainingSum <= 0 && ! $allAutoSettled);
+                        $isPartial = ! $allPaid && ! $allAutoSettled && $paidSum > 0;
+                    @endphp
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-2.5">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <div class="font-bold text-slate-900 dark:text-white">{{ $member?->name }}</div>
+                                <div class="text-xs text-slate-500">Seat {{ $seatNumbers }}</div>
+                            </div>
+                            @if ($allPaid)
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Paid</span>
+                            @elseif ($allAutoSettled)
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400">Auto-Settled</span>
+                            @elseif ($isPartial)
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400">Partial</span>
+                            @else
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">Pending</span>
+                            @endif
+                        </div>
+
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                            <div>
+                                <span class="text-slate-400">Due:</span>
+                                <strong class="font-mono text-slate-900 dark:text-white">Rs. {{ number_format($totalDueSum, 2) }}</strong>
+                                @if ($isPartial)
+                                    <span class="text-sky-500 ml-1">(Bal: Rs. {{ number_format($remainingSum, 2) }})</span>
+                                @endif
+                            </div>
+                            <div>
+                                @if ($isRoundWinner)
+                                    <span class="text-xs text-blue-500 font-medium">Winner (Auto-Deducted)</span>
+                                @elseif ($remainingSum > 0 && ! $allAutoSettled && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments'))
+                                    <button type="button" wire:click="promptUserInstallmentPayment({{ $userId }}, {{ $selectedPeriodId }})"
+                                        class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition">
+                                        {{ $isPartial ? 'Add Settlement' : 'Record Payment' }}
+                                    </button>
+                                @else
+                                    <span class="text-xs text-slate-400">Settled</span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-400">
+                        No installments generated for this period yet.
+                    </div>
+                @endforelse
+            </div>
+
+            <div class="sp-desktop-only overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                 <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
                     <thead class="bg-slate-50 dark:bg-slate-800/50 text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                         <tr>

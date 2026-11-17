@@ -48,7 +48,7 @@ class SavingsSchemeForm
                             ->default('draft')
                             ->required(),
 
-                        Grid::make(3)
+                        Grid::make(['default' => 1, 'sm' => 3])
                             ->schema([
                                 Select::make('bs_year')
                                     ->label('Nepali Year (वर्ष)')
@@ -105,7 +105,7 @@ class SavingsSchemeForm
                             ])
                             ->columnSpanFull(),
 
-                        Grid::make(3)
+                        Grid::make(['default' => 1, 'sm' => 3])
                             ->schema([
                                 TextInput::make('start_date_bs')
                                     ->label('Nepali Date (BS)')
@@ -140,12 +140,12 @@ class SavingsSchemeForm
                             ->nullable()
                             ->columnSpanFull(),
                     ])
-                    ->columns(2),
+                    ->columns(['default' => 1, 'md' => 2]),
 
                 Section::make('Financial & Period Settings')
                     ->description('Installments, interest rates, and Maslanda Deposit rules (Rounds and seats are auto-calculated dynamically as seats are allocated)')
                     ->schema([
-                        Grid::make(2)
+                        Grid::make(['default' => 1, 'sm' => 2])
                             ->schema([
                                 TextInput::make('installment_amount')
                                     ->label('Installment Amount Per Seat')

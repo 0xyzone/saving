@@ -147,16 +147,54 @@
         border-color: rgba(245, 158, 11, 0.4) !important;
     }
 
+    /* Responsive Table/Card Visibility Helpers */
+    .sp-mobile-only {
+        display: none;
+    }
+
+    .sp-desktop-only {
+        display: block;
+    }
+
     /* Mobile Screen Enhancements */
     @media (max-width: 768px) {
+        .sp-mobile-only {
+            display: block !important;
+        }
+
+        .sp-desktop-only {
+            display: none !important;
+        }
+
         .fi-ta-content {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
 
+        .fi-header-actions {
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
+            width: 100% !important;
+        }
+
         .fi-modal-window {
+            width: 100% !important;
+            max-width: 100vw !important;
             max-height: 96vh !important;
+            margin: 0 !important;
             border-radius: 1.25rem 1.25rem 0 0 !important;
+        }
+
+        .fi-modal-content,
+        .fi-modal-header,
+        .fi-modal-footer {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+
+        .fi-modal-footer-actions {
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
         }
 
         .fi-topbar {
