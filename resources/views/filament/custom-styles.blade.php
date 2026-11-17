@@ -15,25 +15,60 @@
         appearance: textfield;
     }
 
-    /* Comfortable Input Field Breathing Space Across App */
-    .fi-input-wrp .fi-input,
-    .fi-input-wrp input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-    .fi-input-wrp textarea,
-    .fi-input-wrp select,
-    .fi-select-input {
-        padding-top: 0.625rem !important;
-        padding-bottom: 0.625rem !important;
-        padding-left: 0.875rem !important;
-        padding-right: 0.875rem !important;
+    /* Consistent, Breathable Input Field Styling Across App */
+    .fi-input-wrp:not(:has(textarea)) {
+        min-height: 2.75rem !important;
+        border-radius: 0.625rem !important;
+    }
+
+    .fi-input-wrp:has(textarea) {
+        border-radius: 0.625rem !important;
+    }
+
+    .fi-input-wrp input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+        padding-top: 0.55rem !important;
+        padding-bottom: 0.55rem !important;
+        padding-inline: 0.875rem !important;
+        line-height: 1.45 !important;
+    }
+
+    .fi-input-wrp:has(.fi-input-wrp-prefix) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+        padding-inline-start: 0.5rem !important;
+    }
+
+    .fi-input-wrp:has(.fi-input-wrp-suffix) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+        padding-inline-end: 0.5rem !important;
+    }
+
+    .fi-input-wrp textarea {
+        padding: 0.75rem 0.875rem !important;
         line-height: 1.5 !important;
     }
 
+    .fi-input-wrp select {
+        padding-top: 0.55rem !important;
+        padding-bottom: 0.55rem !important;
+        padding-inline-start: 0.875rem !important;
+        padding-inline-end: 2.25rem !important;
+        line-height: 1.45 !important;
+    }
+
+    .fi-select-input .fi-select-input-btn {
+        min-height: 2.75rem !important;
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+        padding-inline-start: 0.875rem !important;
+        padding-inline-end: 2.25rem !important;
+    }
+
     .fi-input-wrp .fi-input-wrp-prefix {
-        padding-left: 0.875rem !important;
+        padding-inline-start: 0.875rem !important;
+        padding-inline-end: 0.5rem !important;
     }
 
     .fi-input-wrp .fi-input-wrp-suffix {
-        padding-right: 0.875rem !important;
+        padding-inline-start: 0.5rem !important;
+        padding-inline-end: 0.875rem !important;
     }
 
     /* Brand Lockup Alignment in Sidebar & Topbar */
