@@ -874,10 +874,10 @@ class ManageSavingsScheme extends Page
     {
         $this->record->refresh();
         $this->record->load([
-            'organizer',
+            'organizer.paymentOptions',
             'seats.user',
-            'periods.winningSeat.user',
-            'periods.winnerUser',
+            'periods.winningSeat.user.paymentOptions',
+            'periods.winnerUser.paymentOptions',
             'periods.reservations.user',
             'periods.reservations.seat',
             'periods.installments.seat',
@@ -893,20 +893,22 @@ class ManageSavingsScheme extends Page
             $period = $this->record->periods()->find($periodId);
             if ($period) {
                 $service->generatePeriodInstallments($this->record, $period);
+                $service->recalculateCompletedPeriodTotals($this->record, $period);
                 Notification::make()
                     ->title("Round #{$period->period_number} Installments Refreshed")
-                    ->body('Missing installment records have been loaded.')
+                    ->body('Installment records and round totals have been recalculated.')
                     ->success()
                     ->send();
             }
         } else {
             $service->ensurePeriodsMatchSeats($this->record);
-            foreach ($this->record->periods as $p) {
+            foreach ($this->record->periods()->get() as $p) {
                 $service->generatePeriodInstallments($this->record, $p);
+                $service->recalculateCompletedPeriodTotals($this->record, $p);
             }
             Notification::make()
                 ->title('All Round Installments Refreshed')
-                ->body('All missing round and installment records have been loaded.')
+                ->body('All round installments and payout totals have been recalculated.')
                 ->success()
                 ->send();
         }

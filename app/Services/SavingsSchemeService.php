@@ -723,4 +723,34 @@ class SavingsSchemeService
             ];
         });
     }
+
+    /**
+     * Recalculate a completed period's gross pool, winner dues, net payout, and payout status
+     * from its current installment records.
+     */
+    public function recalculateCompletedPeriodTotals(SavingsScheme $scheme, SchemePeriod $period): void
+    {
+        if ($period->status !== 'completed' || ! $period->winning_seat_id) {
+            return;
+        }
+
+        $installments = $period->installments()->get();
+        $grossPool = (float) $installments->sum('total_due');
+        $winnerDues = (float) $installments->where('user_id', $period->winner_user_id)->sum('total_due');
+        $khaja = ($period->period_number === 1) ? 0.00 : (float) $scheme->khaja_kharcha;
+        $netPayout = max(0.00, $grossPool - $winnerDues - $khaja);
+        $paidToWinner = (float) $period->paid_amount;
+
+        $payoutStatus = $paidToWinner >= $netPayout && $netPayout > 0
+            ? 'paid'
+            : ($paidToWinner > 0 ? 'partial' : 'pending');
+
+        $period->update([
+            'gross_pool_amount' => $grossPool,
+            'winner_dues_deducted' => $winnerDues,
+            'khaja_kharcha_deducted' => $khaja,
+            'net_payout_amount' => $netPayout,
+            'payout_status' => $payoutStatus,
+        ]);
+    }
 }
