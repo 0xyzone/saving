@@ -147,8 +147,7 @@
                         <tr>
                             <th class="px-3 py-3 whitespace-nowrap">Round</th>
                             <th class="px-3 py-3 whitespace-nowrap">Due Date (BS)</th>
-                            <th class="px-3 py-3 whitespace-nowrap">Recipient</th>
-                            <th class="px-3 py-3 whitespace-nowrap">Reservation</th>
+                            <th class="px-3 py-3 whitespace-nowrap">Reservation / Recipient</th>
                             <th class="px-3 py-3 text-right whitespace-nowrap">Gross Pool</th>
                             <th class="px-3 py-3 text-right whitespace-nowrap">Maslanda</th>
                             <th class="px-3 py-3 text-right whitespace-nowrap font-bold text-slate-900 dark:text-white">Net Payout</th>
@@ -176,6 +175,11 @@
                                     </div>
                                 </td>
                                 <td class="px-3 py-3 font-medium whitespace-nowrap">
+                                    @php
+                                        $approvedRes = $period->reservations->firstWhere('status', 'approved');
+                                        $pendingResCount = $period->reservations->where('status', 'pending')->count();
+                                    @endphp
+
                                     @if ($period->winnerUser)
                                         <div class="flex items-center gap-1.5">
                                             <span class="text-amber-500">🏆</span>
@@ -188,28 +192,16 @@
                                             <span class="text-slate-900 dark:text-white">{{ $record->organizer?->name ?? 'Organizer' }}</span>
                                             <span class="text-xs text-amber-600 dark:text-amber-400 font-medium">(Seat #1)</span>
                                         </div>
-                                    @else
-                                        <span class="text-slate-400 italic">Not drawn yet</span>
-                                    @endif
-                                </td>
-                                <td class="px-3 py-3 whitespace-nowrap">
-                                    @php
-                                        $approvedRes = $period->reservations->firstWhere('status', 'approved');
-                                        $pendingResCount = $period->reservations->where('status', 'pending')->count();
-                                    @endphp
-
-                                    @if ($approvedRes)
+                                    @elseif ($approvedRes)
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 whitespace-nowrap">
                                             <span>🔖</span>
-                                            <span>Seat #{{ $approvedRes->seat?->seat_number ?? '?' }}: {{ $approvedRes->user?->name }}</span>
+                                            <span>Reserved · Seat #{{ $approvedRes->seat?->seat_number ?? '?' }}: {{ $approvedRes->user?->name }}</span>
                                         </span>
                                     @elseif ($pendingResCount > 0)
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 whitespace-nowrap">
                                             <span>⏳</span>
-                                            <span>{{ $pendingResCount }} Pending</span>
+                                            <span>{{ $pendingResCount }} Pending Reservation</span>
                                         </span>
-                                    @elseif ($period->period_number === 1)
-                                        <span class="text-xs text-amber-600 dark:text-amber-400 font-medium">Organizer</span>
                                     @else
                                         <span class="text-xs text-slate-400 italic">Open</span>
                                     @endif
@@ -750,14 +742,84 @@
                                     </div>
 
                                     @if (filled($recipientPayment->qr_code_image))
-                                        <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($recipientPayment->qr_code_image) }}"
-                                            target="_blank" rel="noopener noreferrer"
-                                            class="inline-flex items-center gap-2 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-amber-500 transition"
-                                            title="Click to view full QR code">
-                                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($recipientPayment->qr_code_image) }}"
-                                                alt="Payment QR Code" class="h-14 w-14 rounded object-contain bg-white" />
-                                            <span class="text-[11px] font-medium text-amber-600 dark:text-amber-400 pr-1">View QR</span>
-                                        </a>
+                                        @php
+                                            $qrUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($recipientPayment->qr_code_image);
+                                        @endphp
+                                        <div x-data="{
+                                            qrOpen: false,
+                                            qrVisible: false,
+                                            dx: 0,
+                                            dy: 0,
+                                            scale: 0.25,
+                                            openQr(el) {
+                                                const rect = el.getBoundingClientRect();
+                                                this.dx = (rect.left + rect.width / 2) - (window.innerWidth / 2);
+                                                this.dy = (rect.top + rect.height / 2) - (window.innerHeight / 2);
+                                                this.scale = Math.max(0.15, Math.min(0.6, rect.width / 320));
+                                                this.qrOpen = true;
+                                                this.qrVisible = false;
+                                                requestAnimationFrame(() => {
+                                                    requestAnimationFrame(() => {
+                                                        this.qrVisible = true;
+                                                    });
+                                                });
+                                            },
+                                            closeQr() {
+                                                this.qrVisible = false;
+                                                setTimeout(() => {
+                                                    this.qrOpen = false;
+                                                }, 300);
+                                            }
+                                        }" @keydown.escape.window="if (qrOpen) closeQr()">
+                                            <button type="button"
+                                                @click="openQr($el)"
+                                                class="inline-flex items-center gap-2 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-amber-500 transition cursor-pointer"
+                                                title="Click to reveal QR code">
+                                                <img src="{{ $qrUrl }}"
+                                                    alt="Payment QR Code" class="h-14 w-14 rounded object-contain bg-white" />
+                                                <span class="text-[11px] font-medium text-amber-600 dark:text-amber-400 pr-1">View QR</span>
+                                            </button>
+
+                                            <template x-teleport="body">
+                                                <div x-show="qrOpen"
+                                                    x-cloak
+                                                    @click="closeQr()"
+                                                    class="fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-300"
+                                                    :style="qrVisible ? 'background-color: rgba(2, 6, 23, 0.8); backdrop-filter: blur(8px);' : 'background-color: rgba(2, 6, 23, 0); backdrop-filter: blur(0px);'">
+                                                    <div @click.stop
+                                                        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-5 max-w-sm w-full space-y-4"
+                                                        :style="qrVisible
+                                                            ? 'transform: translate3d(0px, 0px, 0) scale(1); opacity: 1; transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease;'
+                                                            : `transform: translate3d(${dx}px, ${dy}px, 0) scale(${scale}); opacity: 0; transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease;`">
+                                                        <div class="flex items-center justify-between">
+                                                            <div>
+                                                                <h4 class="text-sm font-bold text-slate-900 dark:text-white">
+                                                                    {{ $recipientPayment->provider_name ?: ucfirst($recipientPayment->type) }} QR
+                                                                </h4>
+                                                                <p class="text-xs text-slate-500 font-mono">
+                                                                    {{ $recipientPayment->account_number }}
+                                                                </p>
+                                                            </div>
+                                                            <button type="button" @click="closeQr()"
+                                                                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                                                                ✕
+                                                            </button>
+                                                        </div>
+
+                                                        <div class="rounded-xl bg-white p-3 flex items-center justify-center border border-slate-100">
+                                                            <img src="{{ $qrUrl }}" alt="Payment QR Code" class="max-h-72 w-full object-contain rounded-lg" />
+                                                        </div>
+
+                                                        <div class="flex items-center justify-end">
+                                                            <button type="button" @click="closeQr()"
+                                                                class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 transition">
+                                                                Close
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
                                     @endif
                                 </div>
                             @endif
