@@ -235,7 +235,7 @@ class ManageSavingsScheme extends Page
                 )
                 ->icon(fn () => $this->record->current_period === 1
                     ? 'heroicon-m-check-badge'
-                    : 'heroicon-m-user-check'
+                    : 'heroicon-m-check-circle'
                 )
                 ->color(fn () => $this->record->current_period === 1 ? 'success' : 'warning')
                 ->visible(fn () => SavingsSchemeResource::canShield('DeclareWinner')

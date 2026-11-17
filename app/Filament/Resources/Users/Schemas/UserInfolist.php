@@ -76,7 +76,10 @@ class UserInfolist
 
                                 ImageEntry::make('qr_code_image')
                                     ->label('QR Code')
-                                    ->disk('public'),
+                                    ->disk('public')
+                                    ->visibility('public')
+                                    ->imageHeight(140)
+                                    ->placeholder('No QR uploaded'),
 
                                 IconEntry::make('is_preferred')
                                     ->label('Preferred')

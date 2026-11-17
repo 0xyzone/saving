@@ -63,7 +63,7 @@ class EditContactAndAddress extends BaseProfileForm
                             ->placeholder('e.g. johndoe')
                             ->alphaDash()
                             ->disabled()
-                            ->default(fn() => Auth()->user()?->username)
+                            ->default(fn () => Auth()->user()?->username)
                             ->prefix('@')
                             ->nullable()
                             ->unique($this->user::class, 'username', ignorable: $this->user)
@@ -121,6 +121,7 @@ class EditContactAndAddress extends BaseProfileForm
                                     ->label('QR Code')
                                     ->image()
                                     ->disk('public')
+                                    ->visibility('public')
                                     ->directory('payment_qrs')
                                     ->imageEditor()
                                     ->nullable(),
