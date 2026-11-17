@@ -378,4 +378,101 @@ class SavingsSchemeResourceTest extends TestCase
 
         $this->assertCount(3, $period2->fresh()->installments);
     }
+
+    public function test_mid_session_seat_allocation_creates_catchup_and_updates_past_recipients_shares(): void
+    {
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $organizer = User::create([
+            'name' => 'Organizer',
+            'username' => 'org1',
+            'primary_contact_number' => '9800000001',
+            'password' => 'secret123',
+        ]);
+        $organizer->assignRole($superAdminRole);
+
+        $member2 = User::create([
+            'name' => 'Member Two',
+            'username' => 'mem2',
+            'password' => 'secret123',
+        ]);
+
+        $member3 = User::create([
+            'name' => 'Member Three',
+            'username' => 'mem3',
+            'password' => 'secret123',
+        ]);
+
+        $lateJoiner = User::create([
+            'name' => 'Late Joiner',
+            'username' => 'latejoiner',
+            'password' => 'secret123',
+        ]);
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Mid Session CatchUp Scheme',
+            'organizer_id' => $organizer->id,
+            'total_seats' => 3,
+            'total_periods' => 3,
+            'installment_amount' => 5000,
+            'interest_amount' => 500,
+            'khaja_kharcha' => 2000,
+            'frequency' => 'monthly',
+            'start_date' => now()->toDateString(),
+            'status' => 'active',
+        ]);
+
+        $service = app(SavingsSchemeService::class);
+        $service->initializeScheme($scheme);
+        $seat2 = $service->assignSeat($scheme, 2, $member2);
+        $service->assignSeat($scheme, 3, $member3);
+
+        // Settle Round #1 and Round #2 completely
+        $period1 = $scheme->periods()->where('period_number', 1)->first();
+        $service->declareWinner($scheme, $period1, $scheme->seats()->where('seat_number', 1)->first(), paidAmount: 10000.0);
+        $period2 = $scheme->periods()->where('period_number', 2)->first();
+        $service->declareWinner($scheme, $period2, $seat2, paidAmount: 8000.0);
+
+        $scheme->refresh();
+        $period1->refresh();
+        $period2->refresh();
+
+        $origNet1 = (float) $period1->net_payout_amount; // 10,000
+        $origNet2 = (float) $period2->net_payout_amount; // 8,000
+
+        // Now in Round #3, allocate 1 new seat (#4) to Late Joiner and settle catch-up now
+        $this->actingAs($organizer);
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme])
+            ->callAction('assign_seat', [
+                'allocations' => [
+                    ['user_id' => $lateJoiner->id, 'seat_count' => 1],
+                ],
+                'settle_catchup_now' => true,
+                'payment_method' => 'eSewa',
+                'settlement_date' => '2026-11-17',
+            ])
+            ->assertHasNoErrors();
+
+        $scheme->refresh();
+        $period1->refresh();
+        $period2->refresh();
+        $period3 = $scheme->periods()->where('period_number', 3)->first();
+
+        $this->assertEquals(4, $scheme->total_seats);
+        $this->assertEquals(4, $scheme->total_periods);
+
+        // Past completed rounds each gained +5,000 gross & net payout, and payout_status became partial
+        $this->assertEquals($origNet1 + 5000.00, (float) $period1->net_payout_amount);
+        $this->assertEquals('partial', $period1->payout_status);
+        $this->assertEquals(5000.00, $period1->winner_balance_remaining);
+
+        $this->assertEquals($origNet2 + 5000.00, (float) $period2->net_payout_amount);
+        $this->assertEquals('partial', $period2->payout_status);
+        $this->assertEquals(5000.00, $period2->winner_balance_remaining);
+
+        // Catch-up installments were recorded as paid for Round #1 & #2, and pending for current Round #3
+        $newSeat = $scheme->seats()->where('user_id', $lateJoiner->id)->first();
+        $this->assertEquals('paid', $period1->installments()->where('scheme_seat_id', $newSeat->id)->first()->status);
+        $this->assertEquals('paid', $period2->installments()->where('scheme_seat_id', $newSeat->id)->first()->status);
+        $this->assertEquals('pending', $period3->installments()->where('scheme_seat_id', $newSeat->id)->first()->status);
+    }
 }

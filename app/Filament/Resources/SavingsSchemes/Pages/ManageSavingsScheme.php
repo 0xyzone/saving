@@ -17,6 +17,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
@@ -581,13 +582,69 @@ class ManageSavingsScheme extends Page
                         ->defaultItems(1)
                         ->minItems(1)
                         ->addActionLabel('Add Another Member')
+                        ->live()
                         ->required(),
+
+                    Placeholder::make('catchup_summary')
+                        ->label('Mid-Session Catch-Up Summary')
+                        ->visible(fn (): bool => $this->record->periods()->where('status', 'completed')->exists())
+                        ->content(function (callable $get): HtmlString {
+                            $completedCount = $this->record->periods()->where('status', 'completed')->count();
+                            $totalNewSeats = collect($get('allocations') ?? [])->sum(fn ($item): int => max(1, (int) ($item['seat_count'] ?? 1)));
+                            $perSeat = $completedCount * (float) $this->record->installment_amount;
+                            $grandTotal = $totalNewSeats * $perSeat;
+
+                            return new HtmlString("
+                                <div class='p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-slate-800 dark:text-slate-200 space-y-1'>
+                                    <div class='font-semibold text-amber-600 dark:text-amber-400'>
+                                        {$completedCount} round(s) already completed — catch-up due: Rs. ".number_format($perSeat, 2)." per seat
+                                    </div>
+                                    <div>
+                                        Total for {$totalNewSeats} new seat(s): <strong>Rs. ".number_format($grandTotal, 2)."</strong> (distributed equally to past {$completedCount} round recipient(s)).
+                                    </div>
+                                </div>
+                            ");
+                        }),
+
+                    Toggle::make('settle_catchup_now')
+                        ->label('Settle Catch-Up Installments Now')
+                        ->helperText('Turn on to record the catch-up payment immediately during allocation; turn off to leave them pending.')
+                        ->default(true)
+                        ->live()
+                        ->visible(fn (): bool => $this->record->periods()->where('status', 'completed')->exists()),
+
+                    Grid::make(['default' => 1, 'sm' => 2])
+                        ->visible(fn (callable $get): bool => (bool) ($get('settle_catchup_now') ?? true)
+                            && $this->record->periods()->where('status', 'completed')->exists())
+                        ->schema([
+                            Select::make('payment_method')
+                                ->label('Catch-Up Payment Method')
+                                ->options([
+                                    'Cash' => 'Cash',
+                                    'eSewa' => 'eSewa (Digital Wallet)',
+                                    'Khalti' => 'Khalti (Digital Wallet)',
+                                    'Bank Transfer' => 'Bank Transfer (A/C)',
+                                    'Other' => 'Other / Cheque',
+                                ])
+                                ->default('Cash')
+                                ->required(),
+
+                            DatePicker::make('settlement_date')
+                                ->label('Settlement Date')
+                                ->default(now())
+                                ->required(),
+                        ]),
                 ])
                 ->action(function (array $data) {
                     $allocations = (array) ($data['allocations'] ?? []);
+                    $settleNow = (bool) ($data['settle_catchup_now'] ?? true);
+                    $paymentMethod = (string) ($data['payment_method'] ?? 'Cash');
+                    $settlementDate = isset($data['settlement_date']) ? (string) $data['settlement_date'] : now()->toDateString();
+
                     $service = app(SavingsSchemeService::class);
                     $allocatedCount = 0;
                     $allocatedSeats = [];
+                    $totalCatchUp = 0.00;
 
                     foreach ($allocations as $allocation) {
                         if (empty($allocation['user_id'])) {
@@ -599,19 +656,38 @@ class ManageSavingsScheme extends Page
 
                         for ($i = 0; $i < $seatCount; $i++) {
                             $seat = $service->allocateSeat($this->record, $user);
+                            $catchup = $service->applyMidSessionCatchUp(
+                                scheme: $this->record,
+                                seat: $seat,
+                                settleNow: $settleNow,
+                                paymentMethod: $paymentMethod,
+                                paidAt: $settlementDate,
+                                verifiedBy: Auth::id(),
+                            );
+                            $totalCatchUp += $catchup['catchup_amount'];
                             $allocatedSeats[] = "#{$seat->seat_number} ({$user->name})";
                             $allocatedCount++;
                         }
                     }
 
+                    if ($settleNow && $totalCatchUp > 0 && ! in_array($this->record->status, ['active', 'completed'], true)) {
+                        $this->record->update(['status' => 'active']);
+                    }
+
                     $seatList = implode(', ', $allocatedSeats);
+                    $catchUpNote = $totalCatchUp > 0
+                        ? ($settleNow
+                            ? ' Catch-up Rs. '.number_format($totalCatchUp, 2)." settled via {$paymentMethod} and added to past round recipients' balances."
+                            : ' Catch-up Rs. '.number_format($totalCatchUp, 2).' recorded as pending.')
+                        : '';
+
                     Notification::make()
                         ->title($allocatedCount === 1 ? 'Seat Allocated' : "{$allocatedCount} Seats Allocated")
-                        ->body("Allocated {$seatList}. Total rounds: {$this->record->fresh()->total_periods}.")
+                        ->body("Allocated {$seatList}. Total rounds: {$this->record->fresh()->total_periods}.{$catchUpNote}")
                         ->success()
                         ->send();
 
-                    $this->record->refresh();
+                    $this->refreshSchemeRecord();
                 }),
 
             Action::make('settle_winner_payout')

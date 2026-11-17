@@ -153,8 +153,8 @@ class SavingsSchemeService
             'total_periods' => max($scheme->periods()->count(), $totalSeats),
         ]);
 
-        // Refresh installments across all existing periods so new seats/members appear across past & current rounds
-        foreach ($scheme->periods()->orderBy('period_number')->get() as $period) {
+        // Refresh installments across non-completed periods (completed rounds are handled by applyMidSessionCatchUp)
+        foreach ($scheme->periods()->where('status', '!=', 'completed')->orderBy('period_number')->get() as $period) {
             $this->generatePeriodInstallments($scheme, $period);
         }
     }
@@ -632,5 +632,95 @@ class SavingsSchemeService
         }
 
         return ! $query->exists();
+    }
+
+    /**
+     * Apply mid-session catch-up installments for a newly allocated seat across all completed rounds
+     * and ensure the current active round also includes an installment for the new seat.
+     *
+     * @return array{completed_rounds: int, catchup_amount: float}
+     */
+    public function applyMidSessionCatchUp(
+        SavingsScheme $scheme,
+        SchemeSeat $seat,
+        bool $settleNow = false,
+        string $paymentMethod = 'Cash',
+        ?string $paidAt = null,
+        ?int $verifiedBy = null,
+    ): array {
+        if (! $seat->user_id) {
+            return ['completed_rounds' => 0, 'catchup_amount' => 0.00];
+        }
+
+        return DB::transaction(function () use ($scheme, $seat, $settleNow, $paymentMethod, $paidAt, $verifiedBy): array {
+            $completedPeriods = $scheme->periods()
+                ->where('status', 'completed')
+                ->orderBy('period_number')
+                ->get();
+
+            $settlementTimestamp = filled($paidAt) ? Carbon::parse($paidAt) : now();
+            $totalCatchUp = 0.00;
+            $roundsUpdated = 0;
+
+            foreach ($completedPeriods as $period) {
+                $existing = SchemeInstallment::query()
+                    ->where('scheme_period_id', $period->id)
+                    ->where('scheme_seat_id', $seat->id)
+                    ->first();
+
+                if ($existing) {
+                    continue;
+                }
+
+                $baseAmount = (float) $scheme->installment_amount;
+                $installment = SchemeInstallment::create([
+                    'savings_scheme_id' => $scheme->id,
+                    'scheme_period_id' => $period->id,
+                    'scheme_seat_id' => $seat->id,
+                    'user_id' => $seat->user_id,
+                    'base_amount' => $baseAmount,
+                    'interest_amount' => 0.00,
+                    'total_due' => $baseAmount,
+                    'paid_amount' => $settleNow ? $baseAmount : 0.00,
+                    'status' => $settleNow ? 'paid' : 'pending',
+                    'payment_method' => $settleNow ? $paymentMethod : null,
+                    'paid_at' => $settleNow ? $settlementTimestamp : null,
+                    'verified_by' => $settleNow ? $verifiedBy : null,
+                    'notes' => "Mid-session catch-up contribution for Seat #{$seat->seat_number} (Period #{$period->period_number}).",
+                ]);
+
+                $newGrossPool = (float) $period->gross_pool_amount + (float) $installment->total_due;
+                $newNetPayout = (float) $period->net_payout_amount + (float) $installment->total_due;
+                $paidToWinner = (float) $period->paid_amount;
+
+                $payoutStatus = $paidToWinner >= $newNetPayout
+                    ? 'paid'
+                    : ($paidToWinner > 0 ? 'partial' : 'pending');
+
+                $period->update([
+                    'gross_pool_amount' => $newGrossPool,
+                    'net_payout_amount' => $newNetPayout,
+                    'payout_status' => $payoutStatus,
+                ]);
+
+                $totalCatchUp += (float) $installment->total_due;
+                $roundsUpdated++;
+            }
+
+            // Ensure the current in-progress round also has an installment for the newly allocated seat
+            $currentPeriod = $scheme->periods()
+                ->where('period_number', $scheme->current_period)
+                ->where('status', 'in_progress')
+                ->first();
+
+            if ($currentPeriod) {
+                $this->generatePeriodInstallments($scheme, $currentPeriod);
+            }
+
+            return [
+                'completed_rounds' => $roundsUpdated,
+                'catchup_amount' => $totalCatchUp,
+            ];
+        });
     }
 }

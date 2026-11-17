@@ -5,6 +5,13 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-11-17
+
+### Added
+- **Mid-Session Seat Allocation Catch-Up & Past-Recipient Share Distribution**:
+  - Added `SavingsSchemeService::applyMidSessionCatchUp()` to automatically generate catch-up installments across completed rounds for newly allocated seats, increment each completed round's `gross_pool_amount` and `net_payout_amount`, and update `payout_status` to `partial` so past recipients' additional shares can be disbursed via **Settle Recipient Disbursement**.
+  - Updated the **Allocate / Assign Seats** modal in `ManageSavingsScheme` with a live **Mid-Session Catch-Up Summary**, **Settle Catch-Up Installments Now** toggle, payment method selector, and settlement date picker.
+
 ## [1.7.0] - 2026-11-17
 
 ### Added
