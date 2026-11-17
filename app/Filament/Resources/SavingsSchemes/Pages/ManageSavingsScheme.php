@@ -979,6 +979,70 @@ class ManageSavingsScheme extends Page
         $this->record->refresh();
     }
 
+    public ?int $declaringWinnerPeriodId = null;
+
+    public ?int $declaringWinnerSeatId = null;
+
+    public ?string $declaringWinnerNotes = null;
+
+    public function openDeclareWinnerModal(int $periodId): void
+    {
+        $this->declaringWinnerPeriodId = $periodId;
+        $period = $this->record->periods()->find($periodId);
+        $this->declaringWinnerSeatId = $period?->approvedReservation?->scheme_seat_id;
+        $this->declaringWinnerNotes = null;
+    }
+
+    public function closeDeclareWinnerModal(): void
+    {
+        $this->declaringWinnerPeriodId = null;
+        $this->declaringWinnerSeatId = null;
+        $this->declaringWinnerNotes = null;
+    }
+
+    public function confirmDeclareWinner(): void
+    {
+        if (! SavingsSchemeResource::canShield('DeclareWinner')) {
+            Notification::make()->title('Unauthorized to declare winners.')->danger()->send();
+
+            return;
+        }
+
+        if (! $this->declaringWinnerPeriodId) {
+            return;
+        }
+
+        $period = $this->record->periods()->findOrFail($this->declaringWinnerPeriodId);
+        $isPeriodOne = ($period->period_number === 1);
+
+        if ($isPeriodOne) {
+            $seat = $this->record->seats()->where('seat_number', 1)->firstOrFail();
+        } else {
+            if (! $this->declaringWinnerSeatId) {
+                Notification::make()->title('Please select a winning seat.')->warning()->send();
+
+                return;
+            }
+            $seat = $this->record->seats()->findOrFail($this->declaringWinnerSeatId);
+        }
+
+        app(SavingsSchemeService::class)->declareWinner(
+            $this->record,
+            $period,
+            $seat,
+            $this->declaringWinnerNotes
+        );
+
+        Notification::make()
+            ->title($isPeriodOne ? 'Period #1 Winner Confirmed (Organizer)' : "Winner Declared for Round #{$period->period_number}")
+            ->body("Seat #{$seat->seat_number} ({$seat->user?->name}) declared as the winner! Net Prize: Rs. ".number_format((float) $period->fresh()->net_payout_amount, 2).'.')
+            ->success()
+            ->send();
+
+        $this->closeDeclareWinnerModal();
+        $this->record->refresh();
+    }
+
     public ?int $reservingPeriodId = null;
 
     public ?int $reservingSeatId = null;

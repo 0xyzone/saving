@@ -568,6 +568,13 @@
                                 <span>Refresh</span>
                             </button>
 
+                            @if ($viewPeriod->status !== 'completed' && \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('DeclareWinner'))
+                                <button type="button" wire:click="openDeclareWinnerModal({{ $viewPeriod->id }})"
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition flex items-center gap-1.5 shadow-sm">
+                                    <span>🏆</span> Choose Winner
+                                </button>
+                            @endif
+
                             @if ($viewPeriod->period_number > 1 && $viewPeriod->status !== 'completed')
                                 <button type="button" wire:click="openReserveModal({{ $viewPeriod->id }})"
                                     class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition flex items-center gap-1.5 shadow-sm">
@@ -614,33 +621,62 @@
                                 </button>
                             </div>
                         @endif
+                        @php
+                            $isRoundCompleted = ($viewPeriod->status === 'completed' && $viewPeriod->winning_seat_id);
+                            $grossPoolDisplay = $isRoundCompleted
+                                ? (float) $viewPeriod->gross_pool_amount
+                                : ((float) $viewPeriod->installments->sum('total_due') ?: (float) ($record->total_seats * $record->installment_amount));
+                            $maslandaDeduction = (float) ($viewPeriod->period_number === 1 ? 0 : $record->khaja_kharcha);
+                            
+                            // Net Payout preview logic
+                            if ($isRoundCompleted) {
+                                $netPayoutDisplay = (float) $viewPeriod->net_payout_amount;
+                            } else {
+                                $reservedSeat = $viewPeriod->approvedReservation?->seat;
+                                $candidateDues = $reservedSeat
+                                    ? (float) $viewPeriod->installments->where('user_id', $reservedSeat->user_id)->sum('total_due')
+                                    : (float) $record->installment_amount;
+                                $netPayoutDisplay = max(0.0, $grossPoolDisplay - $maslandaDeduction - $candidateDues);
+                            }
+                        @endphp
                         {{-- 4 Metric Cards --}}
                         <div class="sp-round-summary-grid grid grid-cols-2 lg:grid-cols-4 gap-3">
                             <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-800">
                                 <div class="text-xs text-slate-500">Gross Pool</div>
                                 <div class="mt-1 text-lg font-bold font-mono text-slate-900 dark:text-white">
-                                    Rs. {{ number_format((float) ($viewPeriod->status === 'completed' ? $viewPeriod->gross_pool_amount : ($record->total_seats * $record->installment_amount)), 2) }}
+                                    Rs. {{ number_format($grossPoolDisplay, 2) }}
                                 </div>
                             </div>
 
                             <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-800">
                                 <div class="text-xs text-rose-500">Maslanda Deposit</div>
                                 <div class="mt-1 text-lg font-bold font-mono text-rose-600 dark:text-rose-400">
-                                    -Rs. {{ number_format((float) ($viewPeriod->period_number === 1 ? 0 : $record->khaja_kharcha), 2) }}
+                                    -Rs. {{ number_format($maslandaDeduction, 2) }}
                                 </div>
                             </div>
 
                             <div class="p-3.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                                <div class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Net Payout to Winner</div>
+                                <div class="flex items-center justify-between">
+                                    <div class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                                        {{ $isRoundCompleted ? 'Net Payout to Winner' : 'Estimated Net Payout' }}
+                                    </div>
+                                    @if (! $isRoundCompleted)
+                                        <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">Est.</span>
+                                    @endif
+                                </div>
                                 <div class="mt-1 text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">
-                                    Rs. {{ number_format((float) $viewPeriod->net_payout_amount, 2) }}
+                                    Rs. {{ number_format($netPayoutDisplay, 2) }}
                                 </div>
                             </div>
 
-                            <div class="p-3.5 {{ $viewPeriod->winner_balance_remaining > 0 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200/60 dark:border-slate-800' }} rounded-xl border">
-                                <div class="text-xs {{ $viewPeriod->winner_balance_remaining > 0 ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-500' }}">Winner Balance Due</div>
-                                <div class="mt-1 text-lg font-bold font-mono {{ $viewPeriod->winner_balance_remaining > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white' }}">
-                                    Rs. {{ number_format((float) $viewPeriod->winner_balance_remaining, 2) }}
+                            <div class="p-3.5 {{ ($isRoundCompleted && $viewPeriod->winner_balance_remaining > 0) ? 'bg-amber-500/10 border-amber-500/20' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200/60 dark:border-slate-800' }} rounded-xl border">
+                                <div class="text-xs {{ ($isRoundCompleted && $viewPeriod->winner_balance_remaining > 0) ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-500' }}">Winner Balance Due</div>
+                                <div class="mt-1 text-lg font-bold font-mono {{ ($isRoundCompleted && $viewPeriod->winner_balance_remaining > 0) ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white' }}">
+                                    @if ($isRoundCompleted)
+                                        Rs. {{ number_format((float) $viewPeriod->winner_balance_remaining, 2) }}
+                                    @else
+                                        <span class="text-xs font-normal text-slate-400 italic">Pending Winner</span>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -1096,6 +1132,114 @@
                         <button type="button" wire:click="confirmReserve"
                             class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition flex items-center gap-1">
                             <span>🔖</span> Save Reservation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endif
+
+    {{-- MODAL 3.5: Declare Winner Modal --}}
+    @if ($declaringWinnerPeriodId)
+        @php
+            $decPeriod = $record->periods->firstWhere('id', $declaringWinnerPeriodId);
+            $eligibleSeats = $record->seats->filter(function ($s) use ($decPeriod) {
+                // Must be assigned to a user
+                if (! $s->user_id) {
+                    return false;
+                }
+                // If period 1, only seat 1
+                if ($decPeriod?->period_number === 1) {
+                    return $s->seat_number === 1;
+                }
+                // Else seat must not have won in another period
+                return $s->won_at_period === null;
+            });
+            $selectedWinningSeat = $eligibleSeats->firstWhere('id', $declaringWinnerSeatId);
+            $previewGross = (float) ($decPeriod?->installments->sum('total_due') ?: ($record->total_seats * $record->installment_amount));
+            $previewKhaja = (float) ($decPeriod?->period_number === 1 ? 0 : $record->khaja_kharcha);
+            $previewDues = $selectedWinningSeat
+                ? (float) ($decPeriod?->installments->where('user_id', $selectedWinningSeat->user_id)->sum('total_due') ?: $record->installment_amount)
+                : 0.00;
+            $previewNetPrize = max(0.00, $previewGross - $previewKhaja - $previewDues);
+        @endphp
+        @if ($decPeriod)
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+                <div class="sp-custom-modal bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <span>🏆</span> Choose Winner for Round #{{ $decPeriod->period_number }}
+                            </h3>
+                            <div class="text-xs text-slate-500 mt-0.5">
+                                Due Date: <strong>{{ $decPeriod->formatted_due_date_bs }}</strong>
+                            </div>
+                        </div>
+                        <button type="button" wire:click="closeDeclareWinnerModal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">✕</button>
+                    </div>
+
+                    <div class="space-y-3">
+                        @if ($decPeriod->period_number === 1)
+                            <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-300">
+                                Round #1 is reserved for the Organizer (Seat #1 - {{ $record->organizer?->name }}).
+                            </div>
+                        @else
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                    Select Winning Seat <span class="text-rose-500">*</span>
+                                </label>
+                                <select wire:model.live="declaringWinnerSeatId"
+                                    class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition">
+                                    <option value="">-- Choose Winning Seat --</option>
+                                    @foreach ($eligibleSeats as $s)
+                                        <option value="{{ $s->id }}">
+                                            Seat #{{ $s->seat_number }} — {{ $s->user?->name ?? 'Unassigned' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+
+                        {{-- Calculation Breakdown Preview --}}
+                        <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1.5 text-xs">
+                            <div class="font-semibold text-slate-700 dark:text-slate-200 pb-1 border-b border-slate-200 dark:border-slate-700">
+                                Payout Breakdown Preview
+                            </div>
+                            <div class="flex justify-between text-slate-600 dark:text-slate-300">
+                                <span>Gross Pool:</span>
+                                <span class="font-mono font-medium">Rs. {{ number_format($previewGross, 2) }}</span>
+                            </div>
+                            <div class="flex justify-between text-rose-600 dark:text-rose-400">
+                                <span>Maslanda Deposit:</span>
+                                <span class="font-mono font-medium">-Rs. {{ number_format($previewKhaja, 2) }}</span>
+                            </div>
+                            <div class="flex justify-between text-amber-600 dark:text-amber-400">
+                                <span>Winner Seat Dues (Auto-Settled):</span>
+                                <span class="font-mono font-medium">-Rs. {{ number_format($previewDues, 2) }}</span>
+                            </div>
+                            <div class="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 font-bold">
+                                <span>Net Prize to Winner:</span>
+                                <span class="font-mono text-sm">Rs. {{ number_format($previewNetPrize, 2) }}</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                Notes (Optional)
+                            </label>
+                            <textarea wire:model="declaringWinnerNotes" rows="2" placeholder="e.g. Draw held at community center; Seat #4 won."
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <button type="button" wire:click="closeDeclareWinnerModal"
+                            class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+                            Cancel
+                        </button>
+                        <button type="button" wire:click="confirmDeclareWinner"
+                            class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition flex items-center gap-1">
+                            <span>🏆</span> Confirm Winner
                         </button>
                     </div>
                 </div>
