@@ -13,6 +13,7 @@ use App\Services\SavingsSchemeService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -592,92 +593,102 @@ class ManageSavingsScheme extends Page
                 ->color('primary')
                 ->visible(fn () => SavingsSchemeResource::canShield('ManageSeats'))
                 ->modalHeading('Allocate Seats to Members')
-                ->modalDescription('Select one or more members and specify how many seats to allocate per member, auto-expanding the scheme rounds.')
+                ->modalDescription('Add one or more seat allocations and choose a specific seat number (or auto-allocate) for each selected member.')
                 ->form([
-                    Select::make('user_ids')
-                        ->label('Select Members')
-                        ->multiple()
-                        ->options(fn (): array => User::query()
-                            ->where('name', '!=', 'Super Admin')
-                            ->orderBy('name')
-                            ->get()
-                            ->mapWithKeys(fn (User $user): array => [$user->id => static::formatUserSelectLabel($user)])
-                            ->toArray())
-                        ->getSearchResultsUsing(fn (string $search): array => User::query()
-                            ->where('name', '!=', 'Super Admin')
-                            ->where(function ($query) use ($search): void {
-                                $query->where('name', 'like', "%{$search}%")
-                                    ->orWhere('username', 'like', "%{$search}%")
-                                    ->orWhere('primary_contact_number', 'like', "%{$search}%");
-                            })
-                            ->orderBy('name')
-                            ->limit(50)
-                            ->get()
-                            ->mapWithKeys(fn (User $user): array => [$user->id => static::formatUserSelectLabel($user)])
-                            ->toArray())
-                        ->getOptionLabelsUsing(fn (array $values): array => User::query()
-                            ->whereIn('id', $values)
-                            ->get()
-                            ->mapWithKeys(fn (User $user): array => [$user->id => static::formatUserSelectLabel($user)])
-                            ->toArray())
-                        ->searchable()
+                    Repeater::make('allocations')
+                        ->label('Seat Allocations')
+                        ->schema([
+                            Select::make('user_id')
+                                ->label('Member')
+                                ->options(fn (): array => User::query()
+                                    ->where('name', '!=', 'Super Admin')
+                                    ->orderBy('name')
+                                    ->get()
+                                    ->mapWithKeys(fn (User $user): array => [$user->id => static::formatUserSelectLabel($user)])
+                                    ->toArray())
+                                ->getSearchResultsUsing(fn (string $search): array => User::query()
+                                    ->where('name', '!=', 'Super Admin')
+                                    ->where(function ($query) use ($search): void {
+                                        $query->where('name', 'like', "%{$search}%")
+                                            ->orWhere('username', 'like', "%{$search}%")
+                                            ->orWhere('primary_contact_number', 'like', "%{$search}%");
+                                    })
+                                    ->orderBy('name')
+                                    ->limit(50)
+                                    ->get()
+                                    ->mapWithKeys(fn (User $user): array => [$user->id => static::formatUserSelectLabel($user)])
+                                    ->toArray())
+                                ->getOptionLabelUsing(fn ($value): ?string => ($user = User::find($value)) ? static::formatUserSelectLabel($user) : null)
+                                ->searchable()
+                                ->required(),
+
+                            Select::make('seat_number')
+                                ->label('Seat Number')
+                                ->placeholder('Auto-allocate next available seat')
+                                ->options(function (callable $get): array {
+                                    $allocations = $get('../../allocations') ?? [];
+                                    $selectedElsewhere = collect($allocations)
+                                        ->pluck('seat_number')
+                                        ->filter()
+                                        ->map(fn ($num) => (int) $num)
+                                        ->all();
+
+                                    $currentSeat = filled($get('seat_number')) ? (int) $get('seat_number') : null;
+                                    $excluded = array_diff($selectedElsewhere, $currentSeat ? [$currentSeat] : []);
+
+                                    $available = $this->record->seats()
+                                        ->where('seat_number', '!=', 1)
+                                        ->whereNull('user_id')
+                                        ->when(! empty($excluded), fn ($q) => $q->whereNotIn('seat_number', $excluded))
+                                        ->pluck('seat_number', 'seat_number')
+                                        ->mapWithKeys(fn ($num): array => [$num => "Seat #{$num}"])
+                                        ->toArray();
+
+                                    $existingMax = max(1, (int) $this->record->seats()->max('seat_number'));
+                                    $dynamicSlots = max(1, count($allocations));
+
+                                    for ($n = $existingMax + 1; $n <= $existingMax + $dynamicSlots; $n++) {
+                                        if (! in_array($n, $excluded, true)) {
+                                            $available[$n] = "Seat #{$n} (Dynamic Round)";
+                                        }
+                                    }
+
+                                    return $available;
+                                })
+                                ->live()
+                                ->nullable(),
+                        ])
+                        ->columns(2)
+                        ->defaultItems(1)
+                        ->minItems(1)
+                        ->addActionLabel('Add Another Seat / Member')
                         ->required(),
-
-                    TextInput::make('seats_per_user')
-                        ->label('Number of Seats per Selected User')
-                        ->numeric()
-                        ->integer()
-                        ->minValue(1)
-                        ->maxValue(20)
-                        ->default(1)
-                        ->required(),
-
-                    Select::make('seat_number')
-                        ->label('Preferred Seat Number (Optional, single seat only)')
-                        ->placeholder('Auto-allocate next available seats')
-                        ->options(function () {
-                            $available = $this->record->seats()
-                                ->where('seat_number', '!=', 1)
-                                ->whereNull('user_id')
-                                ->pluck('seat_number', 'seat_number')
-                                ->toArray();
-
-                            $nextNumber = ((int) $this->record->seats()->max('seat_number')) + 1;
-                            if ($nextNumber < 2) {
-                                $nextNumber = 2;
-                            }
-
-                            return $available + [
-                                $nextNumber => "Seat #{$nextNumber} (Next Dynamic Round)",
-                            ];
-                        })
-                        ->helperText('Used only when allocating 1 seat to 1 member; otherwise seats are auto-allocated sequentially.')
-                        ->nullable(),
                 ])
                 ->action(function (array $data) {
-                    $userIds = array_values((array) ($data['user_ids'] ?? []));
-                    $seatsPerUser = max(1, (int) ($data['seats_per_user'] ?? 1));
-                    $preferredSeat = (count($userIds) === 1 && $seatsPerUser === 1 && filled($data['seat_number'] ?? null))
-                        ? (int) $data['seat_number']
-                        : null;
-
+                    $allocations = (array) ($data['allocations'] ?? []);
                     $service = app(SavingsSchemeService::class);
                     $allocatedCount = 0;
                     $allocatedSeats = [];
 
-                    foreach ($userIds as $userId) {
-                        $user = User::findOrFail($userId);
-                        for ($i = 0; $i < $seatsPerUser; $i++) {
-                            $seat = $service->allocateSeat($this->record, $user, $i === 0 ? $preferredSeat : null);
-                            $allocatedSeats[] = "#{$seat->seat_number}";
-                            $allocatedCount++;
+                    foreach ($allocations as $allocation) {
+                        if (empty($allocation['user_id'])) {
+                            continue;
                         }
+
+                        $user = User::findOrFail($allocation['user_id']);
+                        $preferredSeat = filled($allocation['seat_number'] ?? null)
+                            ? (int) $allocation['seat_number']
+                            : null;
+
+                        $seat = $service->allocateSeat($this->record, $user, $preferredSeat);
+                        $allocatedSeats[] = "#{$seat->seat_number} ({$user->name})";
+                        $allocatedCount++;
                     }
 
                     $seatList = implode(', ', $allocatedSeats);
                     Notification::make()
                         ->title($allocatedCount === 1 ? 'Seat Allocated' : "{$allocatedCount} Seats Allocated")
-                        ->body("Allocated seat(s) {$seatList}. Total rounds: {$this->record->fresh()->total_periods}.")
+                        ->body("Allocated {$seatList}. Total rounds: {$this->record->fresh()->total_periods}.")
                         ->success()
                         ->send();
 
