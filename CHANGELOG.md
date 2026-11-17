@@ -5,6 +5,20 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-11-17
+
+### Added
+- **Member Dashboard Widgets for Ongoing Saving Schemes**:
+  - `MemberSchemesOverview`: Stats overview showing active seats, current period dues (pending vs. paid), total contributed amount, and won rounds/payouts received.
+  - `MyOngoingSchemeSeats`: Responsive card-grid widget displaying each ongoing seat (`active` and `open_for_applications` schemes), current running period, due date (BS & AD), current period payment status, win status, and a read-only **View Details** slide-over modal with the seat's installment ledger.
+  - `MyInstallmentHistory`: Filterable payment ledger of the member's installments across ongoing schemes.
+  - `MyReservationsAndWinnings`: Dedicated dashboard view of the member's won rounds/payout balances and period reservation requests.
+
+### Changed
+- **Dashboard Widget Visibility**:
+  - Scoped member widgets to users holding at least one seat in an ongoing scheme (`active` or `open_for_applications`).
+  - Restricted `UsersOverview` widget visibility to `super_admin`.
+
 ## [1.3.2] - 2026-11-16
 
 ### Changed

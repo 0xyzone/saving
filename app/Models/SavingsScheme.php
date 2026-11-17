@@ -13,6 +13,8 @@ class SavingsScheme extends Model
 {
     use HasFactory;
 
+    public const ONGOING_STATUSES = ['active', 'open_for_applications'];
+
     protected $fillable = [
         'title',
         'description',

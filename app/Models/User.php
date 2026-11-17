@@ -110,6 +110,21 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     }
 
     /**
+     * @return HasMany<SchemeSeat, covariant $this>
+     */
+    public function schemeSeats(): HasMany
+    {
+        return $this->hasMany(SchemeSeat::class);
+    }
+
+    public function hasOngoingSchemeSeats(): bool
+    {
+        return $this->schemeSeats()
+            ->whereHas('scheme', fn ($query) => $query->whereIn('status', SavingsScheme::ONGOING_STATUSES))
+            ->exists();
+    }
+
+    /**
      * Determine if the user can impersonate other users.
      */
     public function canImpersonate(): bool
