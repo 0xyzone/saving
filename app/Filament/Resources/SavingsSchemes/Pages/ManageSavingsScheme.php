@@ -643,6 +643,76 @@ class ManageSavingsScheme extends Page
                         ->numeric()
                         ->required(),
 
+                    Grid::make(['default' => 1, 'sm' => 3])
+                        ->schema([
+                            Select::make('settlement_bs_year')
+                                ->label('Nepali Year (वर्ष)')
+                                ->options(NepaliDateService::getNepaliYears())
+                                ->default(fn () => (int) substr(NepaliDateService::currentBsDate(), 0, 4))
+                                ->live()
+                                ->dehydrated(false)
+                                ->afterStateUpdated(function (callable $get, callable $set) {
+                                    $y = (int) ($get('settlement_bs_year') ?: 2081);
+                                    $m = (int) ($get('settlement_bs_month') ?: 1);
+                                    $d = (int) ($get('settlement_bs_day') ?: 1);
+                                    $max = NepaliDateService::daysInMonth($m, $y);
+                                    if ($d > $max) {
+                                        $d = $max;
+                                        $set('settlement_bs_day', $d);
+                                    }
+                                    $bs = sprintf('%04d-%02d-%02d', $y, $m, $d);
+                                    $set('paid_at', NepaliDateService::toAd($bs));
+                                })
+                                ->required(),
+
+                            Select::make('settlement_bs_month')
+                                ->label('Nepali Month (महिना)')
+                                ->options(NepaliDateService::getNepaliMonths())
+                                ->default(fn () => (int) substr(NepaliDateService::currentBsDate(), 5, 2))
+                                ->live()
+                                ->dehydrated(false)
+                                ->afterStateUpdated(function (callable $get, callable $set) {
+                                    $y = (int) ($get('settlement_bs_year') ?: 2081);
+                                    $m = (int) ($get('settlement_bs_month') ?: 1);
+                                    $d = (int) ($get('settlement_bs_day') ?: 1);
+                                    $max = NepaliDateService::daysInMonth($m, $y);
+                                    if ($d > $max) {
+                                        $d = $max;
+                                        $set('settlement_bs_day', $d);
+                                    }
+                                    $bs = sprintf('%04d-%02d-%02d', $y, $m, $d);
+                                    $set('paid_at', NepaliDateService::toAd($bs));
+                                })
+                                ->required(),
+
+                            Select::make('settlement_bs_day')
+                                ->label('Nepali Day (गते)')
+                                ->options(function (callable $get) {
+                                    $m = (int) ($get('settlement_bs_month') ?: 1);
+                                    $y = (int) ($get('settlement_bs_year') ?: 2081);
+
+                                    return NepaliDateService::getNepaliDays($m, $y);
+                                })
+                                ->default(fn () => (int) substr(NepaliDateService::currentBsDate(), 8, 2))
+                                ->live()
+                                ->dehydrated(false)
+                                ->afterStateUpdated(function (callable $get, callable $set) {
+                                    $y = (int) ($get('settlement_bs_year') ?: 2081);
+                                    $m = (int) ($get('settlement_bs_month') ?: 1);
+                                    $d = (int) ($get('settlement_bs_day') ?: 1);
+                                    $bs = sprintf('%04d-%02d-%02d', $y, $m, $d);
+                                    $set('paid_at', NepaliDateService::toAd($bs));
+                                })
+                                ->required(),
+                        ]),
+
+                    DatePicker::make('paid_at')
+                        ->label('Settlement Date (AD Auto-Converted)')
+                        ->default(now()->format('Y-m-d'))
+                        ->readOnly()
+                        ->helperText(fn (callable $get) => '🗓️ Nepali: '.NepaliDateService::formatBs($get('paid_at') ? NepaliDateService::toBs($get('paid_at')) : NepaliDateService::currentBsDate()))
+                        ->required(),
+
                     Select::make('payout_method')
                         ->label('Payment Method')
                         ->options([
@@ -672,7 +742,8 @@ class ManageSavingsScheme extends Page
                         (float) $data['amount'],
                         $data['payout_method'] ?? 'Cash',
                         $data['payout_reference'] ?? null,
-                        $data['notes'] ?? null
+                        $data['notes'] ?? null,
+                        $data['paid_at'] ?? now()
                     );
 
                     Notification::make()
@@ -697,6 +768,14 @@ class ManageSavingsScheme extends Page
     public float|string $installmentPaymentAmount = 0;
 
     public string $installmentPaidAt = '';
+
+    public int $installmentPaidBsYear = 2083;
+
+    public int $installmentPaidBsMonth = 1;
+
+    public int $installmentPaidBsDay = 1;
+
+    public string $installmentPaidAtBsString = '';
 
     public string $installmentPaymentMethod = 'Cash';
 
@@ -728,10 +807,44 @@ class ManageSavingsScheme extends Page
         $this->selectedInstallmentUserId = $userId;
         $this->selectedInstallmentPeriodId = $periodId;
         $this->installmentPaymentAmount = $remaining;
-        $this->installmentPaidAt = now()->format('Y-m-d');
+
+        $currentBs = NepaliDateService::currentBsDate();
+        [$y, $m, $d] = NepaliDateService::explodeBs($currentBs);
+        $this->installmentPaidBsYear = $y;
+        $this->installmentPaidBsMonth = $m;
+        $this->installmentPaidBsDay = $d;
+        $this->installmentPaidAtBsString = $currentBs;
+        $this->installmentPaidAt = NepaliDateService::toAd($currentBs);
+
         $this->installmentPaymentMethod = 'Cash';
         $this->installmentPaymentReference = null;
         $this->installmentNotes = null;
+    }
+
+    public function updatedInstallmentPaidBsYear(): void
+    {
+        $this->syncInstallmentBsDate();
+    }
+
+    public function updatedInstallmentPaidBsMonth(): void
+    {
+        $this->syncInstallmentBsDate();
+    }
+
+    public function updatedInstallmentPaidBsDay(): void
+    {
+        $this->syncInstallmentBsDate();
+    }
+
+    protected function syncInstallmentBsDate(): void
+    {
+        $maxDays = NepaliDateService::daysInMonth($this->installmentPaidBsMonth, $this->installmentPaidBsYear);
+        if ($this->installmentPaidBsDay > $maxDays) {
+            $this->installmentPaidBsDay = $maxDays;
+        }
+
+        $this->installmentPaidAtBsString = sprintf('%04d-%02d-%02d', $this->installmentPaidBsYear, $this->installmentPaidBsMonth, $this->installmentPaidBsDay);
+        $this->installmentPaidAt = NepaliDateService::toAd($this->installmentPaidAtBsString);
     }
 
     public function promptMarkInstallmentPaid(int $installmentId): void

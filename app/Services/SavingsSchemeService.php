@@ -10,6 +10,7 @@ use App\Models\SchemePeriodReservation;
 use App\Models\SchemeSeat;
 use App\Models\User;
 use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -406,10 +407,12 @@ class SavingsSchemeService
         float $amount,
         string $method = 'Cash',
         ?string $reference = null,
-        ?string $notes = null
+        ?string $notes = null,
+        DateTimeInterface|string|null $paidAt = null
     ): void {
         $newPaidAmount = (float) $period->paid_amount + $amount;
         $status = ($newPaidAmount >= (float) $period->net_payout_amount) ? 'paid' : 'partial';
+        $paidTimestamp = filled($paidAt) ? Carbon::parse($paidAt) : now();
 
         $period->update([
             'paid_amount' => $newPaidAmount,
@@ -417,7 +420,7 @@ class SavingsSchemeService
             'payout_method' => $method,
             'payout_reference' => $reference,
             'payout_notes' => $notes ?: $period->payout_notes,
-            'paid_at' => now(),
+            'paid_at' => $paidTimestamp,
         ]);
     }
 
