@@ -15,7 +15,9 @@ class UsersOverview extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        return (bool) Auth::user()?->hasRole(Utils::getSuperAdminName());
+        $user = Auth::user();
+
+        return $user instanceof User && $user->hasRole(Utils::getSuperAdminName());
     }
 
     protected function getStats(): array
@@ -25,7 +27,6 @@ class UsersOverview extends StatsOverviewWidget
                 ->description('All registered users')
                 ->descriptionIcon('heroicon-m-users')
                 ->chart([3, 5, 7, 10, 12, User::count()])
-                ->visible(fn () => ! Auth::user()?->hasRole('super_admin'))
                 ->color('success'),
 
             Stat::make('Active Payment Methods', UserPaymentOption::where('is_active', true)->count())
