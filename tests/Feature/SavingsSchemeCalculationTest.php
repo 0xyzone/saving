@@ -314,7 +314,12 @@ class SavingsSchemeCalculationTest extends TestCase
         $this->assertEquals(1000.00, $preview['khaja_kharcha']);
         $this->assertEquals(29000.00, $preview['net_payout']);
 
+        // Declare Winner without recording payout info: winner declared, payout starts pending/unpaid
         $this->service->declareWinner($scheme, $period2, $seat2);
+        $period2->refresh();
+        $this->assertEquals(29000.00, (float) $period2->net_payout_amount);
+        $this->assertEquals(0.00, (float) $period2->paid_amount);
+        $this->assertEquals('pending', $period2->payout_status);
 
         // Verify both Seat 2 and Seat 3 installments are marked auto_settled_winner
         $seat2Installment = SchemeInstallment::where('scheme_period_id', $period2->id)
@@ -326,6 +331,26 @@ class SavingsSchemeCalculationTest extends TestCase
 
         $this->assertEquals('auto_settled_winner', $seat2Installment->status);
         $this->assertEquals('auto_settled_winner', $seat3Installment->status);
+
+        // When all other members' installments are paid, payout settlement auto-clears to 'paid'
+        $period2Installments = SchemeInstallment::where('scheme_period_id', $period2->id)
+            ->whereNotIn('status', ['paid', 'auto_settled_winner'])
+            ->get();
+        foreach ($period2Installments as $inst) {
+            $this->service->settleUserPeriodInstallments(
+                scheme: $scheme,
+                period: $period2,
+                userId: $inst->user_id,
+                amount: $inst->remaining_due,
+                method: 'Cash',
+                paidAt: now()->toDateString(),
+                verifiedBy: $organizer->id
+            );
+        }
+
+        $period2->refresh();
+        $this->assertEquals('paid', $period2->payout_status);
+        $this->assertEquals(29000.00, (float) $period2->paid_amount);
     }
 
     public function test_dynamic_seat_allocation_auto_expands_rounds_and_periods(): void

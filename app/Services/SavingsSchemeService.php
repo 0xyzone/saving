@@ -316,7 +316,7 @@ class SavingsSchemeService
         SchemePeriod $period,
         SchemeSeat $winningSeat,
         ?string $payoutNotes = null,
-        string $payoutMethod = 'Cash',
+        ?string $payoutMethod = null,
         ?string $payoutReference = null,
         ?float $paidAmount = null
     ): void {
@@ -334,8 +334,15 @@ class SavingsSchemeService
 
         DB::transaction(function () use ($scheme, $period, $winningSeat, $payoutNotes, $payoutMethod, $payoutReference, $paidAmount): void {
             $payout = $this->calculateWinnerPayoutPreview($scheme, $period, $winningSeat);
-            $actualPaid = $paidAmount !== null ? $paidAmount : $payout['net_payout'];
-            $payoutStatus = ($actualPaid >= $payout['net_payout']) ? 'paid' : 'partial';
+
+            // If a specific paidAmount is provided, record it; otherwise payout starts at 0 until settled or auto-cleared
+            $actualPaid = $paidAmount !== null ? (float) $paidAmount : 0.00;
+            $payoutStatus = 'pending';
+            if ($actualPaid >= $payout['net_payout'] && $payout['net_payout'] > 0) {
+                $payoutStatus = 'paid';
+            } elseif ($actualPaid > 0) {
+                $payoutStatus = 'partial';
+            }
 
             // Update Winning Seat
             $winningSeat->update([
@@ -355,7 +362,7 @@ class SavingsSchemeService
                 'payout_status' => $payoutStatus,
                 'payout_method' => $payoutMethod,
                 'payout_reference' => $payoutReference,
-                'paid_at' => now(),
+                'paid_at' => $actualPaid > 0 ? now() : null,
                 'payout_notes' => $payoutNotes,
                 'status' => 'completed',
             ]);
@@ -385,6 +392,9 @@ class SavingsSchemeService
                     $this->generatePeriodInstallments($scheme, $nextPeriod);
                 }
             }
+
+            // If all installments in this period were already settled before declaring winner, auto-clear payout settlement
+            $this->checkAndAutoCompletePeriod($scheme, $period);
         });
     }
 

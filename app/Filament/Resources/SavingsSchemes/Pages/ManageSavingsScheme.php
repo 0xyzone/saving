@@ -232,7 +232,7 @@ class ManageSavingsScheme extends Page
 
             Action::make('declare_winner')
                 ->label(fn () => $this->record->current_period === 1
-                    ? 'Settle Period #1 Payout (Organizer)'
+                    ? 'Confirm Period #1 Winner (Organizer)'
                     : "Declare Winner (Period #{$this->record->current_period})"
                 )
                 ->icon(fn () => $this->record->current_period === 1
@@ -245,17 +245,14 @@ class ManageSavingsScheme extends Page
                     && $this->record->current_period <= $this->record->total_periods
                 )
                 ->modalHeading(fn () => $this->record->current_period === 1
-                    ? 'Settle Period #1 Payout (Organizer)'
+                    ? 'Confirm Period #1 Winner (Organizer)'
                     : "Declare Winner for Period #{$this->record->current_period}"
                 )
                 ->modalDescription(fn () => $this->record->current_period === 1
-                    ? 'Period #1 is permanently allocated to Seat #1 (Organizer). Confirm to record the initial full payout (with no Maslanda Deposit deduction) and auto-settle the organizer seat dues.'
-                    : 'Select the winning seat for this round. Winner seat dues and Maslanda Deposit will be calculated and settled automatically.'
+                    ? 'Period #1 is permanently allocated to Seat #1 (Organizer). Confirming declares the winner and auto-settles the organizer seat dues. Payout settlement is handled once member installments are collected.'
+                    : 'Select the winning seat for this round. Winner seat dues will be auto-settled, and winner declared. Payout settlement is handled once member installments are collected.'
                 )
-                ->modalSubmitActionLabel(fn () => $this->record->current_period === 1
-                    ? 'Confirm & Settle Payout'
-                    : 'Declare Winner'
-                )
+                ->modalSubmitActionLabel('Declare Winner')
                 ->form([
                     Placeholder::make('organizer_info')
                         ->label('Period #1 Winner')
@@ -278,7 +275,7 @@ class ManageSavingsScheme extends Page
                                         <div><span class='text-slate-500'>Gross Pool:</span> <strong class='text-slate-900 dark:text-white'>Rs. ".number_format($grossPool, 2)."</strong></div>
                                         <div><span class='text-slate-500'>Own Seat Dues:</span> <strong class='text-amber-600'>-Rs. ".number_format($winnerDues, 2)."</strong></div>
                                         <div><span class='text-slate-500'>Maslanda Deposit:</span> <strong class='text-slate-900 dark:text-white'>Rs. 0.00</strong></div>
-                                        <div><span class='text-slate-500 font-bold'>Net Payout:</span> <strong class='text-emerald-600 dark:text-emerald-400 font-mono'>Rs. ".number_format($netPayout, 2).'</strong></div>
+                                        <div><span class='text-slate-500 font-bold'>Calculated Net Prize:</span> <strong class='text-emerald-600 dark:text-emerald-400 font-mono'>Rs. ".number_format($netPayout, 2).'</strong></div>
                                     </div>
                                 </div>
                             ');
@@ -347,32 +344,9 @@ class ManageSavingsScheme extends Page
                         ->visible(fn () => $this->record->current_period > 1)
                         ->live(),
 
-                    Select::make('payout_method')
-                        ->label('Payout / Settlement Method')
-                        ->options([
-                            'Cash' => 'Cash',
-                            'eSewa' => 'eSewa (Digital Wallet)',
-                            'Khalti' => 'Khalti (Digital Wallet)',
-                            'Bank Transfer' => 'Bank Transfer (A/C)',
-                            'Other' => 'Other / Cheque',
-                        ])
-                        ->default('Cash')
-                        ->required(),
-
-                    TextInput::make('payout_reference')
-                        ->label('Payment Reference / Txn ID')
-                        ->placeholder('e.g. eSewa Txn ID, Bank UTR, Receipt #')
-                        ->nullable(),
-
-                    TextInput::make('paid_amount')
-                        ->label('Initial Amount Paid (Leave empty for full payout)')
-                        ->numeric()
-                        ->placeholder('Full net prize amount')
-                        ->nullable(),
-
-                    Textarea::make('payout_notes')
-                        ->label('Payout Notes / Receipt Info')
-                        ->placeholder('e.g. Paid in cash, or bank transaction reference')
+                    Textarea::make('notes')
+                        ->label('Declaration Notes')
+                        ->placeholder('Optional notes regarding winner selection (e.g. Unanimous choice, raffle, special reservation)')
                         ->nullable(),
                 ])
                 ->action(function (array $data) {
@@ -386,15 +360,12 @@ class ManageSavingsScheme extends Page
                         $this->record,
                         $period,
                         $seat,
-                        $data['payout_notes'] ?? null,
-                        $data['payout_method'] ?? 'Cash',
-                        $data['payout_reference'] ?? null,
-                        filled($data['paid_amount'] ?? null) ? (float) $data['paid_amount'] : null
+                        $data['notes'] ?? null
                     );
 
                     Notification::make()
-                        ->title($isPeriodOne ? 'Period #1 Payout Settled for Organizer' : "Winner Declared for Period #{$period->period_number}")
-                        ->body("Seat #{$seat->seat_number} ({$seat->user?->name}) awarded Net Payout: Rs. ".number_format((float) $period->fresh()->net_payout_amount, 2).' via '.($data['payout_method'] ?? 'Cash'))
+                        ->title($isPeriodOne ? 'Period #1 Winner Confirmed (Organizer)' : "Winner Declared for Period #{$period->period_number}")
+                        ->body("Seat #{$seat->seat_number} ({$seat->user?->name}) has been declared as the winner! Net Prize: Rs. ".number_format((float) $period->fresh()->net_payout_amount, 2).'. Payout will auto-clear when installments are collected.')
                         ->success()
                         ->send();
 
@@ -417,7 +388,7 @@ class ManageSavingsScheme extends Page
                 )
                 ->modalHeading(fn () => "🎉 Lucky Draw / Raffle for Period #{$this->record->current_period}")
                 ->modalDescription('Run an automated lucky draw among all remaining eligible seats to pick the winner for this round.')
-                ->modalSubmitActionLabel('Confirm Raffle Winner & Settle Payout')
+                ->modalSubmitActionLabel('Confirm Raffle Winner')
                 ->form([
                     Select::make('winning_seat_id')
                         ->label('Raffle Winner Candidate')
@@ -444,31 +415,8 @@ class ManageSavingsScheme extends Page
                         ->helperText('🎲 Candidate randomly picked from all eligible remaining seats. You may re-pick or confirm.')
                         ->required(),
 
-                    Select::make('payout_method')
-                        ->label('Payout / Settlement Method')
-                        ->options([
-                            'Cash' => 'Cash',
-                            'eSewa' => 'eSewa (Digital Wallet)',
-                            'Khalti' => 'Khalti (Digital Wallet)',
-                            'Bank Transfer' => 'Bank Transfer (A/C)',
-                            'Other' => 'Other / Cheque',
-                        ])
-                        ->default('Cash')
-                        ->required(),
-
-                    TextInput::make('payout_reference')
-                        ->label('Payment Reference / Txn ID')
-                        ->placeholder('e.g. eSewa Txn ID, Bank UTR, Receipt #')
-                        ->nullable(),
-
-                    TextInput::make('paid_amount')
-                        ->label('Initial Amount Paid (Leave empty for full payout)')
-                        ->numeric()
-                        ->placeholder('Full net prize amount')
-                        ->nullable(),
-
-                    Textarea::make('payout_notes')
-                        ->label('Payout Notes / Receipt Info')
+                    Textarea::make('notes')
+                        ->label('Notes')
                         ->default('Selected via Lucky Draw / Raffle')
                         ->nullable(),
                 ])
@@ -480,15 +428,12 @@ class ManageSavingsScheme extends Page
                         $this->record,
                         $period,
                         $seat,
-                        $data['payout_notes'] ?? 'Selected via Lucky Draw / Raffle',
-                        $data['payout_method'] ?? 'Cash',
-                        $data['payout_reference'] ?? null,
-                        filled($data['paid_amount'] ?? null) ? (float) $data['paid_amount'] : null
+                        $data['notes'] ?? 'Selected via Lucky Draw / Raffle'
                     );
 
                     Notification::make()
                         ->title("🎉 Lucky Draw Winner Declared for Period #{$period->period_number}")
-                        ->body("Seat #{$seat->seat_number} ({$seat->user?->name}) won the raffle! Net Payout: Rs. ".number_format((float) $period->fresh()->net_payout_amount, 2).' via '.($data['payout_method'] ?? 'Cash'))
+                        ->body("Seat #{$seat->seat_number} ({$seat->user?->name}) won the raffle! Net Prize: Rs. ".number_format((float) $period->fresh()->net_payout_amount, 2).'. Payout will auto-clear when installments are collected.')
                         ->success()
                         ->send();
 
