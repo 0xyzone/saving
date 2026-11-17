@@ -114,6 +114,7 @@ class UsersTable
                 'md' => 2,
                 'xl' => 3,
             ])
+            ->paginationPageOptions([3 * 3, 3 * 4, 3 * 6, 3 * 8, 3 * 12, 3 * 24])
             ->defaultSort('created_at', 'desc')
             ->recordActions([
                 ViewAction::make()->slideOver(),
