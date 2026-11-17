@@ -787,10 +787,10 @@
                                                     class="fixed inset-0 flex items-center justify-center p-4 transition-all duration-300"
                                                     :style="`z-index: 99999; ${qrVisible ? 'background-color: rgba(2, 6, 23, 0.8); backdrop-filter: blur(8px);' : 'background-color: rgba(2, 6, 23, 0); backdrop-filter: blur(0px);'}`">
                                                     <div @click.stop
-                                                        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-5 max-w-sm w-full space-y-4"
-                                                        :style="qrVisible
+                                                        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-5 w-full space-y-4"
+                                                        :style="`max-width: 24rem; max-height: 90vh; overflow-y: auto; ${qrVisible
                                                             ? 'transform: translate3d(0px, 0px, 0) scale(1); opacity: 1; transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease;'
-                                                            : `transform: translate3d(${dx}px, ${dy}px, 0) scale(${scale}); opacity: 0; transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease;`">
+                                                            : `transform: translate3d(${dx}px, ${dy}px, 0) scale(${scale}); opacity: 0; transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease;`}`">
                                                         <div class="flex items-center justify-between">
                                                             <div>
                                                                 <h4 class="text-sm font-bold text-slate-900 dark:text-white">
@@ -807,7 +807,9 @@
                                                         </div>
 
                                                         <div class="rounded-xl bg-white p-3 flex items-center justify-center border border-slate-100">
-                                                            <img src="{{ $qrUrl }}" alt="Payment QR Code" class="max-h-72 w-full object-contain rounded-lg" />
+                                                            <img src="{{ $qrUrl }}" alt="Payment QR Code"
+                                                                style="max-height: 60vh; max-width: 100%; width: auto; height: auto; object-fit: contain;"
+                                                                class="rounded-lg" />
                                                         </div>
 
                                                         <div class="flex items-center justify-end">
