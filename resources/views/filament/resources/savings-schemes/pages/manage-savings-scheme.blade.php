@@ -522,7 +522,7 @@
             $viewPeriod = $record->periods()->with(['installments.seat', 'installments.user', 'winningSeat.user', 'winnerUser', 'reservations.seat', 'reservations.user'])->find($viewPeriodId);
         @endphp
         @if ($viewPeriod)
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+            <div wire:click.self="closePeriodDetails" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                 <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto flex flex-col">
                     {{-- Modal Header --}}
                     <div class="sp-round-header flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-10">
@@ -1040,7 +1040,7 @@
             $modalRemaining = max(0.0, $modalTotalDue - $modalAlreadyPaid);
         @endphp
         @if ($targetUser && $userPeriodInsts->isNotEmpty())
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+            <div wire:click.self="cancelInstallmentPrompt" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                 <div class="sp-custom-modal bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                         <div>
@@ -1180,7 +1180,7 @@
                 ->get();
         @endphp
         @if ($resPeriod)
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+            <div wire:click.self="closeReserveModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                 <div class="sp-custom-modal bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                         <div>
@@ -1270,7 +1270,7 @@
             $previewNetPrize = max(0.00, $previewGross - $previewKhaja - $previewDues);
         @endphp
         @if ($decPeriod)
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+            <div wire:click.self="closeDeclareWinnerModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                 <div class="sp-custom-modal bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                         <div>
@@ -1367,7 +1367,7 @@
             $winnerBalanceRemaining = (float) $valPeriod?->winner_balance_remaining;
         @endphp
         @if ($valPeriod)
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+            <div wire:click.self="closeValidateRound" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                 <div class="sp-custom-modal bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
                     {{-- Modal Header --}}
                     <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
