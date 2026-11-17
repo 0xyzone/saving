@@ -203,7 +203,7 @@ class RolesAndPermissionsTest extends TestCase
 
         $scheme = SavingsScheme::create([
             'organizer_id' => $manager->id,
-            'title' => 'Festive Dhukuti',
+            'title' => 'Festive Savings',
             'total_seats' => 5,
             'installment_amount' => 10000,
             'interest_amount' => 500,

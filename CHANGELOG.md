@@ -5,6 +5,24 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-11-17
+
+### Added
+- **Username Authentication & `make:filament-user` Update**:
+  - Added nullable unique `username` column to `users` (and made `primary_contact_number` nullable) via migration.
+  - Updated `Login` to accept either `username` or `primary_contact_number`.
+  - Updated `MakeFilamentUserCommand` (`make:filament-user`) to prompt for `username` instead of phone number.
+  - Added `username` field and column in `UserForm` and `UsersTable`.
+- **Multi-Seat Allocation & Searchable User Labels**:
+  - Updated `Allocate / Assign Seats` action in `ManageSavingsScheme` to support selecting multiple users and specifying the number of seats per selected user.
+  - Formatted user dropdown labels as `Name (username)` and enabled searching by `name`, `username`, and `primary_contact_number`.
+
+### Changed
+- **Seats Roster Privacy**: Replaced phone numbers with `@username` in the seats roster and restricted phone number visibility in installment/winner details to the scheme organizer.
+- **Auto-Activate Scheme on Settlement**: Automatically transitions a scheme's status to `active` once an installment payment is marked as paid.
+- **Maslanda Deposit**: Renamed all `Khaja Kharcha` UI labels to `Maslanda Deposit` and updated the default value to `2000`.
+- **Input Padding & Terminology**: Increased input field padding across the app in `custom-styles.blade.php` and removed all references to `dhukuti`.
+
 ## [1.4.0] - 2026-11-17
 
 ### Added

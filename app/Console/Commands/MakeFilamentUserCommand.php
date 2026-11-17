@@ -18,7 +18,7 @@ use function Laravel\Prompts\text;
 ])]
 class MakeFilamentUserCommand extends BaseMakeUserCommand
 {
-    protected $description = 'Create a new Filament user with primary contact number';
+    protected $description = 'Create a new Filament user with username';
 
     protected $name = 'make:filament-user';
 
@@ -43,10 +43,16 @@ class MakeFilamentUserCommand extends BaseMakeUserCommand
                 description: 'The name of the user',
             ),
             new InputOption(
-                name: 'primary_contact_number',
+                name: 'username',
                 shortcut: null,
                 mode: InputOption::VALUE_REQUIRED,
-                description: 'A valid and unique primary contact number',
+                description: 'A valid and unique username',
+            ),
+            new InputOption(
+                name: 'primary_contact_number',
+                shortcut: null,
+                mode: InputOption::VALUE_OPTIONAL,
+                description: 'A valid and unique primary contact number (optional)',
             ),
             new InputOption(
                 name: 'email',
@@ -74,13 +80,13 @@ class MakeFilamentUserCommand extends BaseMakeUserCommand
      */
     protected function getUserData(): array
     {
-        $primaryContact = $this->options['primary_contact_number'] ?? text(
-            label: 'Primary contact number',
-            placeholder: 'e.g. 9800000000 or +1234567890',
+        $username = $this->options['username'] ?? text(
+            label: 'Username',
+            placeholder: 'e.g. johndoe',
             required: true,
-            validate: fn (string $contact): ?string => match (true) {
-                strlen(trim($contact)) < 5 => 'The primary contact number must be at least 5 digits.',
-                static::getUserModel()::query()->where('primary_contact_number', $contact)->exists() => 'A user with this primary contact number already exists.',
+            validate: fn (string $username): ?string => match (true) {
+                strlen(trim($username)) < 3 => 'The username must be at least 3 characters.',
+                static::getUserModel()::query()->where('username', trim($username))->exists() => 'A user with this username already exists.',
                 default => null,
             },
         );
@@ -90,12 +96,16 @@ class MakeFilamentUserCommand extends BaseMakeUserCommand
                 label: 'Name',
                 required: true,
             ),
-            'primary_contact_number' => $primaryContact,
+            'username' => trim($username),
             'password' => Hash::make($this->options['password'] ?? password(
                 label: 'Password',
                 required: true,
             )),
         ];
+
+        if (isset($this->options['primary_contact_number']) && filled($this->options['primary_contact_number'])) {
+            $data['primary_contact_number'] = trim($this->options['primary_contact_number']);
+        }
 
         if (isset($this->options['email']) && filled($this->options['email'])) {
             $data['email'] = $this->options['email'];

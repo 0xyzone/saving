@@ -70,8 +70,8 @@ class SavingsSchemesTable
 
                                 TextColumn::make('khaja_kharcha')
                                     ->icon('heroicon-m-receipt-percent')
-                                    ->label('Khaja')
-                                    ->formatStateUsing(fn ($state) => 'Rs. '.number_format((float) $state).' khaja')
+                                    ->label('Maslanda Deposit')
+                                    ->formatStateUsing(fn ($state) => 'Rs. '.number_format((float) $state).' maslanda')
                                     ->color('danger')
                                     ->size('xs'),
                             ])->extraAttributes(['class' => 'justify-between gap-2']),

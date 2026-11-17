@@ -209,7 +209,7 @@ class ManageSavingsScheme extends Page
                         ->required(),
 
                     TextInput::make('khaja_kharcha')
-                        ->label('Khaja Kharcha per Round')
+                        ->label('Maslanda Deposit per Round')
                         ->numeric()
                         ->prefix('Rs.')
                         ->required(),
@@ -247,8 +247,8 @@ class ManageSavingsScheme extends Page
                     : "Declare Winner for Period #{$this->record->current_period}"
                 )
                 ->modalDescription(fn () => $this->record->current_period === 1
-                    ? 'Period #1 is permanently allocated to Seat #1 (Organizer). Confirm to record the initial full payout (with no Khaja Kharcha deduction) and auto-settle the organizer seat dues.'
-                    : 'Select the winning seat for this round. Winner seat dues and Khaja Kharcha will be calculated and settled automatically.'
+                    ? 'Period #1 is permanently allocated to Seat #1 (Organizer). Confirm to record the initial full payout (with no Maslanda Deposit deduction) and auto-settle the organizer seat dues.'
+                    : 'Select the winning seat for this round. Winner seat dues and Maslanda Deposit will be calculated and settled automatically.'
                 )
                 ->modalSubmitActionLabel(fn () => $this->record->current_period === 1
                     ? 'Confirm & Settle Payout'
@@ -270,12 +270,12 @@ class ManageSavingsScheme extends Page
                                         <span>🏆</span> <span>Seat #1: {$name} (Organizer)</span>
                                     </div>
                                     <div class='text-xs text-slate-500'>
-                                        As per Dhukuti scheme rules, the Organizer wins Round #1 in full with Rs. 0 Khaja Kharcha deducted.
+                                        As per scheme rules, the Organizer wins Round #1 in full with Rs. 0 Maslanda Deposit deducted.
                                     </div>
                                     <div class='mt-2 pt-2 border-t border-amber-500/20 grid grid-cols-2 gap-2 text-xs'>
                                         <div><span class='text-slate-500'>Gross Pool:</span> <strong class='text-slate-900 dark:text-white'>Rs. ".number_format($grossPool, 2)."</strong></div>
                                         <div><span class='text-slate-500'>Own Seat Dues:</span> <strong class='text-amber-600'>-Rs. ".number_format($winnerDues, 2)."</strong></div>
-                                        <div><span class='text-slate-500'>Khaja Kharcha:</span> <strong class='text-slate-900 dark:text-white'>Rs. 0.00</strong></div>
+                                        <div><span class='text-slate-500'>Maslanda Deposit:</span> <strong class='text-slate-900 dark:text-white'>Rs. 0.00</strong></div>
                                         <div><span class='text-slate-500 font-bold'>Net Payout:</span> <strong class='text-emerald-600 dark:text-emerald-400 font-mono'>Rs. ".number_format($netPayout, 2).'</strong></div>
                                     </div>
                                 </div>
@@ -586,22 +586,54 @@ class ManageSavingsScheme extends Page
                 }),
 
             Action::make('assign_seat')
-                ->label('Allocate / Assign Seat')
+                ->label('Allocate / Assign Seats')
                 ->icon('heroicon-m-user-plus')
                 ->color('primary')
                 ->visible(fn () => SavingsSchemeResource::canShield('ManageSeats'))
-                ->modalHeading('Allocate Seat to Member')
-                ->modalDescription('Assign a member to an existing vacant seat or allocate the next seat dynamically, auto-expanding the scheme rounds.')
+                ->modalHeading('Allocate Seats to Members')
+                ->modalDescription('Select one or more members and specify how many seats to allocate per member, auto-expanding the scheme rounds.')
                 ->form([
-                    Select::make('user_id')
-                        ->label('Select Member')
-                        ->options(fn () => User::where('name', '!=', 'Super Admin')->pluck('name', 'id')->toArray())
+                    Select::make('user_ids')
+                        ->label('Select Members')
+                        ->multiple()
+                        ->options(fn (): array => User::query()
+                            ->where('name', '!=', 'Super Admin')
+                            ->orderBy('name')
+                            ->get()
+                            ->mapWithKeys(fn (User $user): array => [$user->id => static::formatUserSelectLabel($user)])
+                            ->toArray())
+                        ->getSearchResultsUsing(fn (string $search): array => User::query()
+                            ->where('name', '!=', 'Super Admin')
+                            ->where(function ($query) use ($search): void {
+                                $query->where('name', 'like', "%{$search}%")
+                                    ->orWhere('username', 'like', "%{$search}%")
+                                    ->orWhere('primary_contact_number', 'like', "%{$search}%");
+                            })
+                            ->orderBy('name')
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn (User $user): array => [$user->id => static::formatUserSelectLabel($user)])
+                            ->toArray())
+                        ->getOptionLabelsUsing(fn (array $values): array => User::query()
+                            ->whereIn('id', $values)
+                            ->get()
+                            ->mapWithKeys(fn (User $user): array => [$user->id => static::formatUserSelectLabel($user)])
+                            ->toArray())
                         ->searchable()
                         ->required(),
 
+                    TextInput::make('seats_per_user')
+                        ->label('Number of Seats per Selected User')
+                        ->numeric()
+                        ->integer()
+                        ->minValue(1)
+                        ->maxValue(20)
+                        ->default(1)
+                        ->required(),
+
                     Select::make('seat_number')
-                        ->label('Seat Number')
-                        ->placeholder('Auto-allocate next available seat')
+                        ->label('Preferred Seat Number (Optional, single seat only)')
+                        ->placeholder('Auto-allocate next available seats')
                         ->options(function () {
                             $available = $this->record->seats()
                                 ->where('seat_number', '!=', 1)
@@ -618,18 +650,33 @@ class ManageSavingsScheme extends Page
                                 $nextNumber => "Seat #{$nextNumber} (Next Dynamic Round)",
                             ];
                         })
-                        ->helperText('Select a vacant seat or let the system auto-allocate the next round dynamically.')
+                        ->helperText('Used only when allocating 1 seat to 1 member; otherwise seats are auto-allocated sequentially.')
                         ->nullable(),
                 ])
                 ->action(function (array $data) {
-                    $user = User::findOrFail($data['user_id']);
-                    $preferredSeat = filled($data['seat_number'] ?? null) ? (int) $data['seat_number'] : null;
+                    $userIds = array_values((array) ($data['user_ids'] ?? []));
+                    $seatsPerUser = max(1, (int) ($data['seats_per_user'] ?? 1));
+                    $preferredSeat = (count($userIds) === 1 && $seatsPerUser === 1 && filled($data['seat_number'] ?? null))
+                        ? (int) $data['seat_number']
+                        : null;
 
-                    $seat = app(SavingsSchemeService::class)->allocateSeat($this->record, $user, $preferredSeat);
+                    $service = app(SavingsSchemeService::class);
+                    $allocatedCount = 0;
+                    $allocatedSeats = [];
 
+                    foreach ($userIds as $userId) {
+                        $user = User::findOrFail($userId);
+                        for ($i = 0; $i < $seatsPerUser; $i++) {
+                            $seat = $service->allocateSeat($this->record, $user, $i === 0 ? $preferredSeat : null);
+                            $allocatedSeats[] = "#{$seat->seat_number}";
+                            $allocatedCount++;
+                        }
+                    }
+
+                    $seatList = implode(', ', $allocatedSeats);
                     Notification::make()
-                        ->title('Seat Allocated')
-                        ->body("Seat #{$seat->seat_number} has been allocated to {$user->name}. Total rounds: {$this->record->fresh()->total_periods}.")
+                        ->title($allocatedCount === 1 ? 'Seat Allocated' : "{$allocatedCount} Seats Allocated")
+                        ->body("Allocated seat(s) {$seatList}. Total rounds: {$this->record->fresh()->total_periods}.")
                         ->success()
                         ->send();
 
@@ -768,6 +815,10 @@ class ManageSavingsScheme extends Page
                 ? "Ref: {$this->installmentPaymentReference}. {$this->installmentNotes}"
                 : $this->installmentNotes,
         ]);
+
+        if (! in_array($this->record->status, ['active', 'completed'], true)) {
+            $this->record->update(['status' => 'active']);
+        }
 
         Notification::make()
             ->title('Installment Marked as Paid')
@@ -930,5 +981,12 @@ class ManageSavingsScheme extends Page
             ->send();
 
         $this->record->refresh();
+    }
+
+    public static function formatUserSelectLabel(User $user): string
+    {
+        return filled($user->username)
+            ? "{$user->name} ({$user->username})"
+            : $user->name;
     }
 }

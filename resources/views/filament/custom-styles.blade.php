@@ -15,6 +15,27 @@
         appearance: textfield;
     }
 
+    /* Comfortable Input Field Breathing Space Across App */
+    .fi-input-wrp .fi-input,
+    .fi-input-wrp input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    .fi-input-wrp textarea,
+    .fi-input-wrp select,
+    .fi-select-input {
+        padding-top: 0.625rem !important;
+        padding-bottom: 0.625rem !important;
+        padding-left: 0.875rem !important;
+        padding-right: 0.875rem !important;
+        line-height: 1.5 !important;
+    }
+
+    .fi-input-wrp .fi-input-wrp-prefix {
+        padding-left: 0.875rem !important;
+    }
+
+    .fi-input-wrp .fi-input-wrp-suffix {
+        padding-right: 0.875rem !important;
+    }
+
     /* Brand Lockup Alignment in Sidebar & Topbar */
     .fi-sidebar-header .fi-logo,
     .fi-topbar .fi-logo {

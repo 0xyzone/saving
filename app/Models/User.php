@@ -22,6 +22,7 @@ use STS\FilamentImpersonate\Facades\Impersonation;
 
 #[Fillable([
     'name',
+    'username',
     'email',
     'password',
     'primary_contact_number',

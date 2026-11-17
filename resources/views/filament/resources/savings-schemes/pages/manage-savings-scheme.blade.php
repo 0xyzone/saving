@@ -18,7 +18,7 @@
         </div>
 
         <div class="p-4 bg-white border border-slate-200 dark:border-slate-800 rounded-xl dark:bg-slate-900 shadow-sm">
-            <div class="text-xs font-medium text-rose-500 dark:text-rose-400">Khaja Kharcha (Snacks)</div>
+            <div class="text-xs font-medium text-rose-500 dark:text-rose-400">Maslanda Deposit</div>
             <div class="mt-1 text-2xl font-bold text-rose-600 dark:text-rose-400">
                 -Rs. {{ number_format((float) $record->khaja_kharcha) }}
             </div>
@@ -66,7 +66,7 @@
                             <th class="px-4 py-3">Winner</th>
                             <th class="px-4 py-3">Reservation</th>
                             <th class="px-4 py-3 text-right">Gross Pool</th>
-                            <th class="px-4 py-3 text-right">Khaja Kharcha</th>
+                            <th class="px-4 py-3 text-right">Maslanda Deposit</th>
                             <th class="px-4 py-3 text-right font-bold text-slate-900 dark:text-white">Net Payout</th>
                             <th class="px-4 py-3 text-right">Paid / Balance</th>
                             <th class="px-4 py-3 text-center">Status</th>
@@ -244,7 +244,11 @@
                                 {{ $seat->user ? $seat->user->name : 'Unassigned' }}
                             </div>
                             <div class="text-xs text-slate-500 truncate">
-                                {{ $seat->user ? $seat->user->primary_contact_number : 'Open for allocation' }}
+                                @if ($seat->user)
+                                    {{ $seat->user->username ? '@' . $seat->user->username : 'Member' }}
+                                @else
+                                    Open for allocation
+                                @endif
                             </div>
                         </div>
 
@@ -307,7 +311,13 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="font-medium text-slate-900 dark:text-white">{{ $inst->user?->name }}</div>
-                                    <div class="text-xs text-slate-400">{{ $inst->user?->primary_contact_number }}</div>
+                                    <div class="text-xs text-slate-400">
+                                        @if (auth()->id() === $record->organizer_id)
+                                            {{ $inst->user?->primary_contact_number ?: ($inst->user?->username ? '@' . $inst->user->username : '') }}
+                                        @else
+                                            {{ $inst->user?->username ? '@' . $inst->user->username : '' }}
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono">
                                     Rs. {{ number_format((float) $inst->base_amount, 2) }}
@@ -448,7 +458,7 @@
                             </div>
 
                             <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-800">
-                                <div class="text-xs text-rose-500">Khaja Kharcha</div>
+                                <div class="text-xs text-rose-500">Maslanda Deposit</div>
                                 <div class="mt-1 text-lg font-bold font-mono text-rose-600 dark:text-rose-400">
                                     -Rs. {{ number_format((float) ($viewPeriod->period_number === 1 ? 0 : $record->khaja_kharcha), 2) }}
                                 </div>
@@ -486,7 +496,11 @@
                                         </div>
                                         <div class="text-xs text-slate-500">
                                             @if ($viewPeriod->winnerUser)
-                                                Phone: {{ $viewPeriod->winnerUser->primary_contact_number }}
+                                                @if (auth()->id() === $record->organizer_id && $viewPeriod->winnerUser->primary_contact_number)
+                                                    Phone: {{ $viewPeriod->winnerUser->primary_contact_number }}
+                                                @elseif ($viewPeriod->winnerUser->username)
+                                                    {{ '@' . $viewPeriod->winnerUser->username }}
+                                                @endif
                                             @endif
                                         </div>
                                     </div>

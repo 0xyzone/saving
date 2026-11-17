@@ -29,16 +29,15 @@ class Login extends BaseLogin
     {
         return $this->isNumberVerified
             ? 'Enter your account password to complete verification'
-            : 'Enter your registered primary contact number to access your account';
+            : 'Enter your username or registered primary contact number to access your account';
     }
 
     protected function getEmailFormComponent(): Component
     {
         return TextInput::make('primary_contact_number')
-            ->label('Primary Contact Number')
-            ->placeholder('e.g. 9801234567')
-            ->tel()
-            ->prefixIcon(Heroicon::Phone)
+            ->label('Username or Primary Contact Number')
+            ->placeholder('e.g. johndoe or 9801234567')
+            ->prefixIcon(Heroicon::User)
             ->required()
             ->autocomplete()
             ->autofocus()
@@ -48,7 +47,7 @@ class Login extends BaseLogin
                 fn (): ?Action => $this->isNumberVerified
                     ? Action::make('changeNumber')
                         ->icon(Heroicon::PencilSquare)
-                        ->tooltip('Change contact number')
+                        ->tooltip('Change username or contact number')
                         ->action(function (): void {
                             $this->isNumberVerified = false;
                             $this->data['password'] = null;
@@ -126,28 +125,29 @@ class Login extends BaseLogin
     {
         $this->resetErrorBag();
 
-        $contactNumber = trim((string) ($this->data['primary_contact_number'] ?? ''));
+        $identifier = trim((string) ($this->data['primary_contact_number'] ?? ''));
 
-        if (blank($contactNumber)) {
+        if (blank($identifier)) {
             throw ValidationException::withMessages([
-                'data.primary_contact_number' => 'Please enter your primary contact number.',
+                'data.primary_contact_number' => 'Please enter your username or primary contact number.',
             ]);
         }
 
         $userModel = $this->getUserModelClass();
         $userExists = $userModel::query()
-            ->where('primary_contact_number', $contactNumber)
+            ->where('username', $identifier)
+            ->orWhere('primary_contact_number', $identifier)
             ->exists();
 
         if (! $userExists) {
             Notification::make()
                 ->danger()
                 ->title('Account not found')
-                ->body('No account was found with the provided primary contact number.')
+                ->body('No account was found with the provided username or primary contact number.')
                 ->send();
 
             throw ValidationException::withMessages([
-                'data.primary_contact_number' => 'No account exists with this primary contact number.',
+                'data.primary_contact_number' => 'No account exists with this username or primary contact number.',
             ]);
         }
 
@@ -171,8 +171,15 @@ class Login extends BaseLogin
      */
     protected function getCredentialsFromFormData(#[SensitiveParameter] array $data): array
     {
+        $identifier = trim((string) ($data['primary_contact_number'] ?? ($this->data['primary_contact_number'] ?? '')));
+        $userModel = $this->getUserModelClass();
+        $user = $userModel::query()
+            ->where('username', $identifier)
+            ->orWhere('primary_contact_number', $identifier)
+            ->first();
+
         return [
-            'primary_contact_number' => $data['primary_contact_number'] ?? ($this->data['primary_contact_number'] ?? ''),
+            'id' => $user?->getKey(),
             'password' => $data['password'] ?? ($this->data['password'] ?? ''),
         ];
     }

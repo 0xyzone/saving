@@ -18,7 +18,28 @@ class UserAuthenticationAndResourceTest extends TestCase
         $response = $this->get('/login');
 
         $response->assertStatus(200);
-        $response->assertSeeText('Primary Contact Number');
+        $response->assertSeeText('Username or Primary Contact Number');
+    }
+
+    public function test_user_can_authenticate_with_username(): void
+    {
+        $user = User::create([
+            'name' => 'John Doe',
+            'username' => 'johndoe',
+            'password' => 'secret1234',
+        ]);
+
+        Livewire::test(Login::class)
+            ->set('data.primary_contact_number', 'johndoe')
+            ->call('verifyContactNumber')
+            ->assertHasNoErrors()
+            ->assertSet('isNumberVerified', true)
+            ->set('data.password', 'secret1234')
+            ->call('authenticate')
+            ->assertHasNoErrors()
+            ->assertRedirect('/');
+
+        $this->assertAuthenticatedAs($user);
     }
 
     public function test_two_step_login_verification_flow(): void

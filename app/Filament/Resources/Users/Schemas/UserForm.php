@@ -27,6 +27,14 @@ class UserForm
                             ->required()
                             ->maxLength(255),
 
+                        TextInput::make('username')
+                            ->label('Username (Used for Login)')
+                            ->placeholder('e.g. johndoe')
+                            ->alphaDash()
+                            ->nullable()
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(255),
+
                         Select::make('roles')
                             ->relationship('roles', 'name')
                             ->multiple()

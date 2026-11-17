@@ -142,7 +142,7 @@ class SavingsSchemeForm
                     ->columns(2),
 
                 Section::make('Financial & Period Settings')
-                    ->description('Installments, interest rates, and khaja kharcha rules (Rounds and seats are auto-calculated dynamically as seats are allocated)')
+                    ->description('Installments, interest rates, and Maslanda Deposit rules (Rounds and seats are auto-calculated dynamically as seats are allocated)')
                     ->schema([
                         Grid::make(2)
                             ->schema([
@@ -163,10 +163,10 @@ class SavingsSchemeForm
                                     ->helperText('Fixed cash interest added to each past winner’s subsequent installments.'),
 
                                 TextInput::make('khaja_kharcha')
-                                    ->label('Khaja Kharcha (Snack Expense)')
+                                    ->label('Maslanda Deposit')
                                     ->numeric()
                                     ->prefix('Rs.')
-                                    ->default(1000)
+                                    ->default(2000)
                                     ->required()
                                     ->helperText('Deducted from winner payout from Period 2 onwards (Rs. 0 deduction in Period 1).'),
 

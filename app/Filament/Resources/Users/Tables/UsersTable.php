@@ -42,6 +42,14 @@ class UsersTable
                                 ->weight('bold')
                                 ->size('lg'),
 
+                            TextColumn::make('username')
+                                ->icon('heroicon-m-at-symbol')
+                                ->iconColor('primary')
+                                ->searchable()
+                                ->placeholder('No username')
+                                ->color('gray')
+                                ->size('sm'),
+
                             TextColumn::make('primary_contact_number')
                                 ->icon('heroicon-m-phone')
                                 ->iconColor('primary')

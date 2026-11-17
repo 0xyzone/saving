@@ -207,4 +207,75 @@ class SavingsSchemeResourceTest extends TestCase
         Livewire::test(ListSavingsSchemes::class)
             ->assertCanSeeTableRecords([$schemeA, $schemeB]);
     }
+
+    public function test_multi_seat_allocation_and_scheme_activates_on_installment_settlement(): void
+    {
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $admin = User::create([
+            'name' => 'Super Admin',
+            'username' => 'superadmin',
+            'primary_contact_number' => '9800000001',
+            'password' => 'secret123',
+        ]);
+        $admin->assignRole($superAdminRole);
+
+        $member1 = User::create([
+            'name' => 'Alice',
+            'username' => 'alice99',
+            'primary_contact_number' => '9800000011',
+            'password' => 'secret123',
+        ]);
+
+        $member2 = User::create([
+            'name' => 'Bob',
+            'username' => 'bob77',
+            'primary_contact_number' => '9800000012',
+            'password' => 'secret123',
+        ]);
+
+        $this->assertSame('Alice (alice99)', ManageSavingsScheme::formatUserSelectLabel($member1));
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Draft Multi Seat Scheme',
+            'organizer_id' => $admin->id,
+            'total_seats' => 1,
+            'total_periods' => 1,
+            'installment_amount' => 5000,
+            'interest_amount' => 200,
+            'khaja_kharcha' => 2000,
+            'frequency' => 'monthly',
+            'start_date' => now()->toDateString(),
+            'status' => 'draft',
+        ]);
+
+        app(SavingsSchemeService::class)->initializeScheme($scheme);
+
+        $this->actingAs($admin);
+
+        // Allocate 2 seats each to Alice and Bob (4 new seats -> total 5 seats)
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme])
+            ->callAction('assign_seat', [
+                'user_ids' => [$member1->id, $member2->id],
+                'seats_per_user' => 2,
+            ])
+            ->assertHasNoErrors();
+
+        $scheme->refresh();
+        $this->assertEquals(5, $scheme->seats()->count());
+        $this->assertEquals(2, $scheme->seats()->where('user_id', $member1->id)->count());
+        $this->assertEquals(2, $scheme->seats()->where('user_id', $member2->id)->count());
+        $this->assertEquals('draft', $scheme->status);
+
+        // Settle one installment -> scheme automatically becomes active
+        $period1 = $scheme->periods()->where('period_number', 1)->first();
+        app(SavingsSchemeService::class)->generatePeriodInstallments($scheme, $period1);
+        $installment = $period1->installments()->where('user_id', $member1->id)->first();
+
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme])
+            ->call('markInstallmentPaid', $installment->id)
+            ->assertNotified('Installment Marked as Paid');
+
+        $this->assertEquals('paid', $installment->fresh()->status);
+        $this->assertEquals('active', $scheme->fresh()->status);
+    }
 }
