@@ -221,31 +221,64 @@
 
         {{-- TAB 2: Seats Roster --}}
         <div x-show="activeTab === 'seats'" class="space-y-3">
+            @php
+                $rosterCards = collect();
+                $assignedByUser = $record->seats->whereNotNull('user_id')->groupBy('user_id');
+                foreach ($record->seats as $seat) {
+                    if (! $seat->user_id) {
+                        $rosterCards->push(collect([$seat]));
+                    } elseif ($assignedByUser->has($seat->user_id)) {
+                        $rosterCards->push($assignedByUser->pull($seat->user_id));
+                    }
+                }
+            @endphp
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                @foreach ($record->seats as $seat)
+                @foreach ($rosterCards as $userSeats)
+                    @php
+                        $primarySeat = $userSeats->first();
+                        $member = $primarySeat->user;
+                        $seatCount = $userSeats->count();
+                        $seatLabels = $userSeats->map(fn ($s) => '#' . $s->seat_number)->implode(', ');
+                        $hasOrganizerSeat = $userSeats->contains(fn ($s) => $s->seat_number === 1);
+                        $wonPeriods = $userSeats->pluck('won_at_period')->filter()->values();
+                        $hasInterest = $userSeats->contains(fn ($s) => $s->seat_number !== 1 && $s->won_at_period !== null);
+                        $futureDuesTotal = $userSeats->sum(function ($s) use ($record) {
+                            if ($s->seat_number === 1) {
+                                return (float) $record->installment_amount;
+                            }
+
+                            return $s->won_at_period
+                                ? (float) ($record->installment_amount + $record->interest_amount)
+                                : (float) $record->installment_amount;
+                        });
+                    @endphp
                     <div class="p-3.5 bg-white border border-slate-200 dark:border-slate-800 rounded-xl dark:bg-slate-900 shadow-sm flex flex-col justify-between">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                Seat #{{ $seat->seat_number }}
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 truncate">
+                                {{ $seatCount > 1 ? "Seats {$seatLabels}" : "Seat {$seatLabels}" }}
                             </span>
-                            @if ($seat->seat_number === 1)
-                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">Organizer</span>
-                            @elseif ($seat->won_at_period)
-                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">Won Rd #{{ $seat->won_at_period }}</span>
-                            @elseif ($seat->user)
-                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400">Assigned</span>
+                            @if ($hasOrganizerSeat)
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">Organizer</span>
+                            @elseif ($wonPeriods->isNotEmpty())
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                                    Won Rd #{{ $wonPeriods->implode(', #') }}
+                                </span>
+                            @elseif ($member)
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0">
+                                    {{ $seatCount > 1 ? "{$seatCount} Seats" : 'Assigned' }}
+                                </span>
                             @else
-                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">Available</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 shrink-0">Available</span>
                             @endif
                         </div>
 
                         <div class="mt-3">
                             <div class="font-medium text-slate-900 dark:text-white truncate">
-                                {{ $seat->user ? $seat->user->name : 'Unassigned' }}
+                                {{ $member ? $member->name : 'Unassigned' }}
                             </div>
                             <div class="text-xs text-slate-500 truncate">
-                                @if ($seat->user)
-                                    {{ $seat->user->username ? '@' . $seat->user->username : 'Member' }}
+                                @if ($member)
+                                    {{ $member->username ? '@' . $member->username : 'Member' }}
                                 @else
                                     Open for allocation
                                 @endif
@@ -254,12 +287,10 @@
 
                         <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
                             <span>Future dues:</span>
-                            @if ($seat->seat_number === 1)
-                                <span class="font-medium">Rs. {{ number_format((float) $record->installment_amount) }}</span>
-                            @elseif ($seat->won_at_period)
-                                <span class="font-medium text-amber-600 dark:text-amber-400">+Interest: Rs. {{ number_format((float) ($record->installment_amount + $record->interest_amount)) }}</span>
+                            @if ($hasInterest)
+                                <span class="font-medium text-amber-600 dark:text-amber-400">+Interest: Rs. {{ number_format($futureDuesTotal) }}</span>
                             @else
-                                <span class="font-medium">Rs. {{ number_format((float) $record->installment_amount) }}</span>
+                                <span class="font-medium">Rs. {{ number_format($futureDuesTotal) }}</span>
                             @endif
                         </div>
                     </div>
