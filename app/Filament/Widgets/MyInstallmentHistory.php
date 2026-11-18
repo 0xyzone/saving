@@ -6,6 +6,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\SavingsScheme;
 use App\Models\SchemeInstallment;
+use App\Services\NepaliDateService;
 use Filament\Tables\Columns\Layout\Panel;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\Layout\Stack;
@@ -79,7 +80,9 @@ class MyInstallmentHistory extends TableWidget
 
                             TextColumn::make('payment_method')
                                 ->formatStateUsing(fn (?string $state): string => $state ? ucfirst(str_replace('_', ' ', $state)) : 'Unpaid')
-                                ->description(fn (SchemeInstallment $record): ?string => $record->paid_at ? $record->paid_at->format('M d, Y') : null)
+                                ->description(fn (SchemeInstallment $record): ?string => $record->paid_at
+                                    ? NepaliDateService::formatBs($record->paid_at).' ('.$record->paid_at->format('M d, Y').' AD)'
+                                    : null)
                                 ->color('gray')
                                 ->size('xs')
                                 ->grow(false),

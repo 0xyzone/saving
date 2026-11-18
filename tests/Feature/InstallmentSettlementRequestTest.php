@@ -96,11 +96,12 @@ class InstallmentSettlementRequestTest extends TestCase
         $this->assertSame('ESW-998877', $request->reference_id);
         $this->assertEquals(1000.00, (float) $request->amount);
 
-        // Once pending, apply_settlement hides and Pending Verification shows
+        // Once pending, apply_settlement hides, Pending Verification shows, and card badge shows Submitted for Review
         $seat2->refresh();
         Livewire::test(MyOngoingSchemeSeats::class)
             ->assertDontSee('Apply Settlement')
-            ->assertSee('Pending Verification');
+            ->assertSee('Pending Verification')
+            ->assertSee('Submitted for Review: Rd #1 (Rs. 1,000.00)');
 
         // Organizer sees pending request in PendingSettlementRequestsWidget and approves it
         $this->actingAs($organizer);
@@ -125,6 +126,18 @@ class InstallmentSettlementRequestTest extends TestCase
         $this->assertSame('eSewa', $installment->payment_method);
         $this->assertSame($organizer->id, $installment->verified_by);
         $this->assertFalse(PendingSettlementRequestsWidget::canView());
+
+        // Member sees Approved badge on seat card and Nepali BS Paid On date in View Details modal
+        $this->actingAs($member);
+        Livewire::test(MyOngoingSchemeSeats::class)
+            ->assertSee('Last Request: Approved (Rd #1)');
+
+        $modalHtml = view('filament.widgets.seat-details-modal', [
+            'seat' => $seat2->fresh(['scheme.organizer', 'scheme.periods', 'installments.period', 'settlementRequests.period', 'settlementRequests.reviewer']),
+            'currentPeriod' => $period1,
+            'currentInstallment' => $installment,
+        ])->render();
+        $this->assertStringContainsString(NepaliDateService::formatBs($installment->paid_at), $modalHtml);
     }
 
     public function test_organizer_can_reject_settlement_request_on_manage_scheme_page(): void

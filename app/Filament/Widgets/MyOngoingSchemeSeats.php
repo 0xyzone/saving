@@ -47,7 +47,7 @@ class MyOngoingSchemeSeats extends TableWidget
         return $table
             ->query(
                 SchemeSeat::query()
-                    ->with(['scheme.organizer', 'scheme.periods', 'installments.period', 'settlementRequests'])
+                    ->with(['scheme.organizer', 'scheme.periods', 'installments.period', 'settlementRequests.period', 'settlementRequests.reviewer'])
                     ->where('user_id', Auth::id())
                     ->whereHas('scheme', fn ($query) => $query->whereIn('status', SavingsScheme::ONGOING_STATUSES))
                     ->orderBy('savings_scheme_id')
@@ -142,6 +142,64 @@ class MyOngoingSchemeSeats extends TableWidget
                                     ->color(fn (SchemeSeat $record): string => $record->won_at_period ? 'success' : 'gray')
                                     ->grow(false),
                             ])->extraAttributes(['class' => 'items-center justify-between gap-2']),
+
+                            TextColumn::make('settlement_application_status')
+                                ->badge()
+                                ->icon(function (SchemeSeat $record): ?string {
+                                    $pending = $record->settlementRequests->where('status', InstallmentSettlementRequest::STATUS_PENDING)->sortByDesc('id')->first();
+                                    if ($pending) {
+                                        return 'heroicon-m-clock';
+                                    }
+
+                                    $latest = $record->settlementRequests->sortByDesc('id')->first();
+
+                                    return match ($latest?->status) {
+                                        InstallmentSettlementRequest::STATUS_APPROVED => 'heroicon-m-check-circle',
+                                        InstallmentSettlementRequest::STATUS_REJECTED => 'heroicon-m-x-circle',
+                                        default => null,
+                                    };
+                                })
+                                ->state(function (SchemeSeat $record): ?string {
+                                    $pendingCount = $record->settlementRequests
+                                        ->where('status', InstallmentSettlementRequest::STATUS_PENDING)
+                                        ->count();
+
+                                    if ($pendingCount > 0) {
+                                        $latestPending = $record->settlementRequests
+                                            ->where('status', InstallmentSettlementRequest::STATUS_PENDING)
+                                            ->sortByDesc('id')
+                                            ->first();
+                                        $rd = $latestPending?->period?->period_number ?? '?';
+                                        $amt = number_format((float) ($latestPending?->amount ?? 0), 2);
+
+                                        return $pendingCount > 1
+                                            ? "Submitted for Review ({$pendingCount} pending)"
+                                            : "Submitted for Review: Rd #{$rd} (Rs. {$amt})";
+                                    }
+
+                                    $latest = $record->settlementRequests->sortByDesc('id')->first();
+                                    if (! $latest) {
+                                        return null;
+                                    }
+
+                                    $rd = $latest->period?->period_number ?? '?';
+
+                                    return 'Last Request: '.ucfirst($latest->status)." (Rd #{$rd})";
+                                })
+                                ->color(function (SchemeSeat $record): string {
+                                    if ($record->settlementRequests->where('status', InstallmentSettlementRequest::STATUS_PENDING)->isNotEmpty()) {
+                                        return 'warning';
+                                    }
+
+                                    $latest = $record->settlementRequests->sortByDesc('id')->first();
+
+                                    return match ($latest?->status) {
+                                        InstallmentSettlementRequest::STATUS_APPROVED => 'success',
+                                        InstallmentSettlementRequest::STATUS_REJECTED => 'danger',
+                                        default => 'gray',
+                                    };
+                                })
+                                ->visible(fn (?SchemeSeat $record): bool => ($record?->settlementRequests?->isNotEmpty()) ?? false),
                         ])->space(2),
                     ]),
                 ])->space(3),
@@ -306,7 +364,7 @@ class MyOngoingSchemeSeats extends TableWidget
                     ->modalWidth('3xl')
                     ->modalHeading(fn (SchemeSeat $record): string => "{$record->scheme->title} — Seat #{$record->seat_number}")
                     ->modalContent(fn (SchemeSeat $record) => view('filament.widgets.seat-details-modal', [
-                        'seat' => $record->loadMissing(['scheme.organizer', 'scheme.periods', 'installments.period']),
+                        'seat' => $record->loadMissing(['scheme.organizer', 'scheme.periods', 'installments.period', 'settlementRequests.period', 'settlementRequests.reviewer']),
                         'currentPeriod' => $this->resolveCurrentPeriod($record),
                         'currentInstallment' => $this->resolveCurrentInstallment($record),
                     ]))
