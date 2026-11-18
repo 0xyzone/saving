@@ -7,6 +7,7 @@ use App\Filament\Widgets\MemberSchemesOverview;
 use App\Filament\Widgets\MyInstallmentHistory;
 use App\Filament\Widgets\MyOngoingSchemeSeats;
 use App\Filament\Widgets\MyReservationsAndWinnings;
+use App\Filament\Widgets\PotentialReturnCalculator;
 use App\Filament\Widgets\UsersOverview;
 use App\Models\SavingsScheme;
 use App\Models\SchemePeriodReservation;
@@ -236,5 +237,117 @@ class MemberDashboardWidgetsTest extends TestCase
             ->assertSuccessful()
             ->assertSee('2') // 2 active for $user (not 3)
             ->assertSee('1'); // 1 preferred for $user (not 2)
+    }
+
+    public function test_potential_return_calculator_visibility_and_multi_seat_projection(): void
+    {
+        $organizer = User::create([
+            'name' => 'Organizer User',
+            'email' => 'org-calc@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $member = User::create([
+            'name' => 'Multi Seat Member',
+            'email' => 'member-calc@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $outsider = User::create([
+            'name' => 'Outsider User',
+            'email' => 'outsider-calc@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Calc Test Scheme',
+            'organizer_id' => $organizer->id,
+            'total_seats' => 4,
+            'total_periods' => 4,
+            'installment_amount' => 1000,
+            'interest_amount' => 100,
+            'khaja_kharcha' => 200,
+            'frequency' => 'monthly',
+            'start_date' => '2026-01-01',
+            'status' => 'active',
+        ]);
+
+        $service = app(SavingsSchemeService::class);
+        $service->initializeScheme($scheme);
+
+        // Seat 1: organizer (disbursed in Period 1)
+        $seat1 = $scheme->seats()->where('seat_number', 1)->firstOrFail();
+        $seat1->update([
+            'user_id' => $organizer->id,
+            'won_at_period' => 1,
+        ]);
+
+        // Seat 2 & Seat 3: member (Seat 2 already disbursed in Period 2; Seat 3 still eligible)
+        $seat2 = $scheme->seats()->where('seat_number', 2)->firstOrFail();
+        $seat2->update([
+            'user_id' => $member->id,
+            'won_at_period' => 2,
+        ]);
+
+        $seat3 = $scheme->seats()->where('seat_number', 3)->firstOrFail();
+        $seat3->update([
+            'user_id' => $member->id,
+            'won_at_period' => null,
+        ]);
+
+        // Seat 4: another member (not yet disbursed)
+        $seat4 = $scheme->seats()->where('seat_number', 4)->firstOrFail();
+        $seat4->update([
+            'user_id' => $organizer->id,
+            'won_at_period' => null,
+        ]);
+
+        $period1 = $scheme->periods()->where('period_number', 1)->firstOrFail();
+        $period1->update(['status' => 'completed', 'winning_seat_id' => $seat1->id, 'is_validated' => true]);
+
+        $period2 = $scheme->periods()->where('period_number', 2)->firstOrFail();
+        $period2->update(['status' => 'completed', 'winning_seat_id' => $seat2->id, 'is_validated' => false]);
+
+        $period3 = $scheme->periods()->where('period_number', 3)->firstOrFail();
+        $period3->update(['status' => 'in_progress']);
+
+        $period4 = $scheme->periods()->where('period_number', 4)->firstOrFail();
+
+        // Outsider cannot view the widget
+        $this->actingAs($outsider);
+        $this->assertFalse(PotentialReturnCalculator::canView());
+
+        // Member with ongoing seats can view the widget
+        $this->actingAs($member);
+        $this->assertTrue(PotentialReturnCalculator::canView());
+
+        // Only Round #4 is upcoming & unvalidated & unassigned.
+        // In Round #4:
+        //   Prior rounds 2 & 3 will each have a non-organizer recipient => 2 seats with +100 interest
+        //   Gross Pool = 4 * 1000 + 2 * 100 = 4200
+        //   User's own dues in Round #4: Seat 2 (1000 + 100) + Seat 3 (1000) = 2100
+        //   Maslanda Deposit = 200
+        //   Net Disbursement = 4200 - 2100 - 200 = 1900.00
+        Livewire::test(PotentialReturnCalculator::class)
+            ->assertSuccessful()
+            ->assertSee('Potential Return Estimator')
+            ->assertSee('2 Seats')
+            ->assertSee('1 Eligible Left')
+            ->assertSee('Round #4')
+            ->assertDontSee('Round #1')
+            ->assertDontSee('Round #2')
+            ->assertDontSee('Round #3')
+            ->assertSee('1,900.00')
+            ->assertSee('4,200.00')
+            ->assertSee('2,100.00')
+            ->assertSee('200.00');
+
+        // When all user seats are disbursed, eligible_seats_left === 0 and Net Disbursement is 0.00
+        $seat3->update(['won_at_period' => 3]);
+
+        Livewire::test(PotentialReturnCalculator::class)
+            ->assertSuccessful()
+            ->assertSee('All Seats Disbursed')
+            ->assertSee('0.00');
     }
 }
