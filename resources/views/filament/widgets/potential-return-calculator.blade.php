@@ -63,7 +63,7 @@
                     <select id="sp-calc-period" wire:model.live="selectedPeriodId" class="sp-calc-select" @disabled($upcomingPeriods->isEmpty())>
                         @forelse ($upcomingPeriods as $period)
                             <option value="{{ $period->id }}">
-                                Round #{{ $period->period_number }} — {{ $period->due_date_bs ?: $period->due_date?->format('M d, Y') }}
+                                Round #{{ $period->period_number }} — {{ $period->formatted_due_date_bs }}
                             </option>
                         @empty
                             <option value="">No upcoming rounds available</option>
