@@ -1007,4 +1007,70 @@
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
     }
+
+    .sp-port-locked-wrap {
+        position: relative;
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+
+    .sp-port-locked-content {
+        filter: grayscale(0.88) blur(1.5px);
+        opacity: 0.34;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    .sp-port-locked-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        padding: 1rem;
+        text-align: center;
+        border-radius: 1rem;
+        background: rgba(248, 250, 252, 0.35);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+
+    .dark .sp-port-locked-overlay {
+        background: rgba(2, 6, 23, 0.42);
+    }
+
+    .sp-port-locked-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: rgba(100, 116, 139, 0.2);
+        color: #334155;
+        border: 1px solid rgba(100, 116, 139, 0.35);
+    }
+
+    .dark .sp-port-locked-badge {
+        background: rgba(148, 163, 184, 0.16);
+        color: #cbd5e1;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+    }
+
+    .sp-port-locked-text {
+        margin: 0;
+        max-width: 24ch;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: #475569;
+        line-height: 1.4;
+    }
+
+    .dark .sp-port-locked-text {
+        color: #94a3b8;
+    }
 </style>

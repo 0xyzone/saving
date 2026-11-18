@@ -97,15 +97,17 @@
                             </div>
                         </div>
 
-                        <div class="sp-calc-gain-block">
-                            <span class="sp-calc-eyebrow">Projected Net Gain</span>
-                            <div class="sp-calc-gain-value {{ $gainPositive ? 'sp-calc-positive' : 'sp-calc-negative' }}">
-                                <span class="sp-calc-gain-sign">{{ $gainPositive ? '+' : '−' }}</span>Rs.&nbsp;{{ number_format(abs($netGain), 2) }}
+                        @if ($projection['total_user_seats'] <= 1)
+                            <div class="sp-calc-gain-block">
+                                <span class="sp-calc-eyebrow">Projected Net Gain</span>
+                                <div class="sp-calc-gain-value {{ $gainPositive ? 'sp-calc-positive' : 'sp-calc-negative' }}">
+                                    <span class="sp-calc-gain-sign">{{ $gainPositive ? '+' : '−' }}</span>Rs.&nbsp;{{ number_format(abs($netGain), 2) }}
+                                </div>
+                                <span class="sp-calc-gain-note">
+                                    vs. Rs. {{ number_format($projection['seat_lifetime_outlay'], 2) }} full-scheme seat outlay ({{ $projection['total_periods'] }} rounds{{ $projection['seat_future_interest'] > 0 ? ' + Rs. ' . number_format($projection['seat_future_interest'], 0) . ' future interest' : '' }})
+                                </span>
                             </div>
-                            <span class="sp-calc-gain-note">
-                                vs. Rs. {{ number_format($projection['seat_lifetime_outlay'], 2) }} full-scheme seat outlay ({{ $projection['total_periods'] }} rounds{{ $projection['seat_future_interest'] > 0 ? ' + Rs. ' . number_format($projection['seat_future_interest'], 0) . ' future interest' : '' }})
-                            </span>
-                        </div>
+                        @endif
                     </div>
 
                     {{-- Compact Breakdown Grid --}}

@@ -62,9 +62,11 @@
                     $combinedGain = (float) $portfolio['combined_net_gain'];
                     $gainPositive = $combinedGain >= 0;
                     $animKey = ($selectedSchemeId ?? '0') . '-' . md5(json_encode($seatTargetPeriods));
+                    $isSingleSeat = $portfolio['total_user_seats'] <= 1;
                 @endphp
 
-                <div class="sp-calc-result-shell" wire:key="sp-port-result-{{ $animKey }}">
+                <div class="{{ $isSingleSeat ? 'sp-port-locked-wrap' : '' }}">
+                    <div class="sp-calc-result-shell {{ $isSingleSeat ? 'sp-port-locked-content' : '' }}" wire:key="sp-port-result-{{ $animKey }}">
                     {{-- Hero Combined Net Gain --}}
                     <div class="sp-calc-hero-row">
                         <div class="sp-calc-hero-block">
@@ -125,6 +127,16 @@
                             </div>
                         @endforeach
                     </div>
+                    </div>
+
+                    @if ($isSingleSeat)
+                        <div class="sp-port-locked-overlay">
+                            <span class="sp-port-locked-badge">Multi-Seat Feature</span>
+                            <p class="sp-port-locked-text">
+                                Hold 2+ seats in this scheme to unlock combined portfolio simulation.
+                            </p>
+                        </div>
+                    @endif
                 </div>
             @else
                 <div class="sp-calc-empty">

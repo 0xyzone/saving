@@ -339,11 +339,11 @@ class MemberDashboardWidgetsTest extends TestCase
             ->assertDontSee('Round #1')
             ->assertDontSee('Round #2')
             ->assertDontSee('Round #3')
+            ->assertDontSee('Projected Net Gain')
             ->assertSee('1,900.00')
             ->assertSee('4,200.00')
             ->assertSee('2,100.00')
-            ->assertSee('200.00')
-            ->assertSee('4,000.00 full-scheme seat outlay (4 rounds)');
+            ->assertSee('200.00');
 
         // When all user seats are disbursed, eligible_seats_left === 0 and Net Disbursement is 0.00
         $seat3->update(['won_at_period' => 3]);
@@ -431,6 +431,7 @@ class MemberDashboardWidgetsTest extends TestCase
             ->assertSee('2 Seats')
             ->assertSee('1 Disbursed')
             ->assertSee('1 Simulated')
+            ->assertDontSee('Multi-Seat Feature')
             ->assertSee('Seat #2')
             ->assertSee('Disbursed in Round #2')
             ->assertSee('Seat #3')
@@ -438,5 +439,26 @@ class MemberDashboardWidgetsTest extends TestCase
             ->assertSee('7,800.00')
             ->assertSee('8,200.00')
             ->assertSee('400.00');
+
+        // Single-seat holder sees the Potential Return Estimator's Projected Net Gain
+        // and sees the Portfolio Net Gain Simulator in a grayed-out locked preview state.
+        $singleUser = User::create([
+            'name' => 'Single Seat Portfolio',
+            'email' => 'single-port@example.com',
+            'password' => bcrypt('password'),
+        ]);
+        $seat4->update(['user_id' => $singleUser->id]);
+
+        $this->actingAs($singleUser);
+
+        Livewire::test(PotentialReturnCalculator::class)
+            ->assertSuccessful()
+            ->assertSee('Projected Net Gain')
+            ->assertSee('4,000.00 full-scheme seat outlay (4 rounds)');
+
+        Livewire::test(PortfolioNetGainSimulator::class)
+            ->assertSuccessful()
+            ->assertSee('Multi-Seat Feature')
+            ->assertSeeHtml('sp-port-locked-content');
     }
 }
