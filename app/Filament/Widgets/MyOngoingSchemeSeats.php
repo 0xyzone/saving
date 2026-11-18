@@ -17,6 +17,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -211,153 +212,50 @@ class MyOngoingSchemeSeats extends TableWidget
                 'md' => 2,
                 'xl' => 3,
             ])
+            ->headerActions([
+                Action::make('apply_settlement_header')
+                    ->label('Apply Settlement')
+                    ->icon('heroicon-m-banknotes')
+                    ->color('success')
+                    ->visible(fn (): bool => $this->allEligibleInstallmentsForUser()->isNotEmpty())
+                    ->modalHeading('Apply for Installment Settlement')
+                    ->modalDescription('Select any pending or upcoming installment across your seats and submit payment details for organizer verification.')
+                    ->modalWidth('lg')
+                    ->form(fn (): array => $this->buildSettlementFormSchema(
+                        eligible: $this->allEligibleInstallmentsForUser(),
+                        showInstallmentSelect: true,
+                    ))
+                    ->action(function (array $data): void {
+                        $installment = $this->allEligibleInstallmentsForUser()
+                            ->firstWhere('id', (int) ($data['scheme_installment_id'] ?? 0));
+
+                        $this->submitSettlementAction($installment, $data);
+                    }),
+            ])
             ->recordActions([
                 Action::make('apply_settlement')
                     ->label('Apply Settlement')
                     ->icon('heroicon-m-banknotes')
                     ->color('success')
-                    ->visible(fn (SchemeSeat $record): bool => $this->eligibleInstallmentsForSeat($record)->isNotEmpty())
-                    ->modalHeading(fn (SchemeSeat $record): string => "Apply Settlement — {$record->scheme->title} (Seat #{$record->seat_number})")
-                    ->modalDescription('Submit your installment payment details for organizer verification.')
+                    ->visible(fn (SchemeSeat $record): bool => $this->eligibleCurrentInstallmentForSeat($record) !== null)
+                    ->modalHeading(function (SchemeSeat $record): string {
+                        $roundNum = $this->resolveCurrentPeriod($record)?->period_number ?? $record->scheme?->current_period;
+
+                        return "Apply Settlement — {$record->scheme->title} (Seat #{$record->seat_number} • Round #{$roundNum})";
+                    })
+                    ->modalDescription('Submit payment details for the current running round installment.')
                     ->modalWidth('lg')
                     ->form(function (SchemeSeat $record): array {
-                        $eligible = $this->eligibleInstallmentsForSeat($record);
-                        /** @var SchemeInstallment|null $defaultInstallment */
-                        $defaultInstallment = $eligible->first();
-                        [$defaultYear, $defaultMonth, $defaultDay] = NepaliDateService::explodeBs(NepaliDateService::currentBsDate());
+                        $currentInstallment = $this->eligibleCurrentInstallmentForSeat($record);
 
-                        $options = $eligible->mapWithKeys(function (SchemeInstallment $inst): array {
-                            $roundNum = $inst->period?->period_number ?? '?';
-                            $remaining = number_format($inst->remaining_due, 2);
-
-                            return [$inst->id => "Round #{$roundNum} — Remaining Due: Rs. {$remaining}"];
-                        })->all();
-
-                        return [
-                            Select::make('scheme_installment_id')
-                                ->label('Installment / Round')
-                                ->options($options)
-                                ->default($defaultInstallment?->id)
-                                ->required()
-                                ->live()
-                                ->afterStateUpdated(function (Set $set, $state) use ($eligible): void {
-                                    $selected = $eligible->firstWhere('id', (int) $state);
-                                    if ($selected) {
-                                        $set('amount', $selected->remaining_due);
-                                    }
-                                }),
-
-                            Grid::make(3)
-                                ->schema([
-                                    Select::make('bs_year')
-                                        ->label('Nepali Year (BS)')
-                                        ->options(NepaliDateService::getNepaliYears())
-                                        ->default($defaultYear)
-                                        ->required()
-                                        ->live(),
-
-                                    Select::make('bs_month')
-                                        ->label('Nepali Month')
-                                        ->options(NepaliDateService::getNepaliMonths())
-                                        ->default($defaultMonth)
-                                        ->required()
-                                        ->live(),
-
-                                    Select::make('bs_day')
-                                        ->label('Nepali Day')
-                                        ->options(fn (Get $get): array => NepaliDateService::getNepaliDays(
-                                            (int) ($get('bs_month') ?: $defaultMonth),
-                                            (int) ($get('bs_year') ?: $defaultYear),
-                                        ))
-                                        ->default($defaultDay)
-                                        ->required()
-                                        ->live()
-                                        ->helperText(function (Get $get) use ($defaultYear, $defaultMonth, $defaultDay): string {
-                                            $y = (int) ($get('bs_year') ?: $defaultYear);
-                                            $m = (int) ($get('bs_month') ?: $defaultMonth);
-                                            $d = min((int) ($get('bs_day') ?: $defaultDay), NepaliDateService::daysInMonth($m, $y));
-
-                                            return '🗓️ '.NepaliDateService::formatBs(sprintf('%04d-%02d-%02d', $y, $m, $d));
-                                        }),
-                                ]),
-
-                            TextInput::make('amount')
-                                ->label('Settlement Amount (Rs.)')
-                                ->numeric()
-                                ->required()
-                                ->minValue(1)
-                                ->default($defaultInstallment?->remaining_due ?? 0),
-
-                            Select::make('payment_method')
-                                ->label('Payment Method')
-                                ->options(InstallmentSettlementRequest::PAYMENT_METHODS)
-                                ->default('Cash')
-                                ->required(),
-
-                            TextInput::make('reference_id')
-                                ->label('Transaction Reference / ID')
-                                ->placeholder('e.g. eSewa Txn ID, Bank Ref')
-                                ->maxLength(120),
-
-                            Textarea::make('notes')
-                                ->label('Notes')
-                                ->rows(2)
-                                ->maxLength(500),
-
-                            FileUpload::make('proof_images')
-                                ->label('Payment Proof Images (Optional)')
-                                ->image()
-                                ->multiple()
-                                ->maxFiles(5)
-                                ->disk('public')
-                                ->visibility('public')
-                                ->directory('settlement_proofs')
-                                ->nullable(),
-                        ];
+                        return $this->buildSettlementFormSchema(
+                            eligible: collect($currentInstallment ? [$currentInstallment] : []),
+                            showInstallmentSelect: false,
+                            fixedInstallment: $currentInstallment,
+                        );
                     })
                     ->action(function (SchemeSeat $record, array $data): void {
-                        $user = Auth::user();
-                        $installment = $this->eligibleInstallmentsForSeat($record)
-                            ->firstWhere('id', (int) ($data['scheme_installment_id'] ?? 0));
-
-                        if (! $user || ! $installment) {
-                            Notification::make()
-                                ->danger()
-                                ->title('Invalid Installment Selected')
-                                ->send();
-
-                            return;
-                        }
-
-                        $y = (int) $data['bs_year'];
-                        $m = (int) $data['bs_month'];
-                        $d = min((int) $data['bs_day'], NepaliDateService::daysInMonth($m, $y));
-                        $bsDate = sprintf('%04d-%02d-%02d', $y, $m, $d);
-
-                        try {
-                            app(SavingsSchemeService::class)->submitInstallmentSettlementRequest(
-                                installment: $installment,
-                                user: $user,
-                                amount: (float) $data['amount'],
-                                paymentMethod: (string) $data['payment_method'],
-                                paymentDateBs: $bsDate,
-                                referenceId: $data['reference_id'] ?? null,
-                                notes: $data['notes'] ?? null,
-                                proofImages: $data['proof_images'] ?? null,
-                            );
-
-                            Notification::make()
-                                ->success()
-                                ->title('Settlement Application Submitted')
-                                ->body("Your settlement request for Round #{$installment->period?->period_number} has been sent to the organizer for verification.")
-                                ->send();
-                        } catch (InvalidArgumentException $e) {
-                            Notification::make()
-                                ->danger()
-                                ->title('Could Not Submit Request')
-                                ->body($e->getMessage())
-                                ->send();
-                        }
+                        $this->submitSettlementAction($this->eligibleCurrentInstallmentForSeat($record), $data);
                     }),
 
                 Action::make('settlement_pending')
@@ -365,8 +263,7 @@ class MyOngoingSchemeSeats extends TableWidget
                     ->icon('heroicon-m-clock')
                     ->color('warning')
                     ->disabled()
-                    ->visible(fn (SchemeSeat $record): bool => $this->eligibleInstallmentsForSeat($record)->isEmpty()
-                        && $record->settlementRequests->where('status', InstallmentSettlementRequest::STATUS_PENDING)->isNotEmpty()),
+                    ->visible(fn (SchemeSeat $record): bool => $this->isCurrentInstallmentPending($record)),
 
                 Action::make('view_details')
                     ->label('View Details')
@@ -402,24 +299,227 @@ class MyOngoingSchemeSeats extends TableWidget
         return $seat->installments->firstWhere('scheme_period_id', $currentPeriod->id);
     }
 
+    protected function eligibleCurrentInstallmentForSeat(SchemeSeat $seat): ?SchemeInstallment
+    {
+        $seat->loadMissing(['scheme.periods', 'installments.period', 'settlementRequests']);
+        $currentInstallment = $this->resolveCurrentInstallment($seat);
+
+        if (! $currentInstallment) {
+            return null;
+        }
+
+        if ($currentInstallment->remaining_due <= 0 || in_array($currentInstallment->status, ['paid', 'waived', 'auto_settled_winner'], true)) {
+            return null;
+        }
+
+        $hasPending = $seat->settlementRequests
+            ->where('status', InstallmentSettlementRequest::STATUS_PENDING)
+            ->contains(fn (InstallmentSettlementRequest $req): bool => (int) $req->scheme_installment_id === (int) $currentInstallment->id);
+
+        return $hasPending ? null : $currentInstallment;
+    }
+
+    protected function isCurrentInstallmentPending(SchemeSeat $seat): bool
+    {
+        $seat->loadMissing(['scheme.periods', 'installments', 'settlementRequests']);
+        $currentInstallment = $this->resolveCurrentInstallment($seat);
+
+        if (! $currentInstallment) {
+            return false;
+        }
+
+        return $seat->settlementRequests
+            ->where('status', InstallmentSettlementRequest::STATUS_PENDING)
+            ->contains(fn (InstallmentSettlementRequest $req): bool => (int) $req->scheme_installment_id === (int) $currentInstallment->id);
+    }
+
     /**
      * @return Collection<int, SchemeInstallment>
      */
-    protected function eligibleInstallmentsForSeat(SchemeSeat $seat): Collection
+    protected function allEligibleInstallmentsForUser(): Collection
     {
-        $seat->loadMissing(['installments.period', 'settlementRequests']);
+        $userId = Auth::id();
 
-        $pendingInstallmentIds = $seat->settlementRequests
+        if (! $userId) {
+            return collect();
+        }
+
+        $pendingIds = InstallmentSettlementRequest::query()
+            ->where('user_id', $userId)
             ->where('status', InstallmentSettlementRequest::STATUS_PENDING)
             ->pluck('scheme_installment_id')
             ->map(fn ($id): int => (int) $id)
             ->all();
 
-        return $seat->installments
+        return SchemeInstallment::query()
+            ->with(['scheme', 'seat', 'period'])
+            ->where('user_id', $userId)
+            ->whereHas('scheme', fn ($q) => $q->whereIn('status', SavingsScheme::ONGOING_STATUSES))
+            ->whereNotIn('status', ['paid', 'waived', 'auto_settled_winner'])
+            ->get()
             ->filter(fn (SchemeInstallment $inst): bool => $inst->remaining_due > 0
-                && ! in_array($inst->status, ['paid', 'waived', 'auto_settled_winner'], true)
-                && ! in_array((int) $inst->id, $pendingInstallmentIds, true))
-            ->sortBy(fn (SchemeInstallment $inst): int => (int) ($inst->period?->period_number ?? 0))
+                && ! in_array((int) $inst->id, $pendingIds, true))
+            ->sortBy([
+                fn (SchemeInstallment $inst): string => (string) ($inst->scheme?->title ?? ''),
+                fn (SchemeInstallment $inst): int => (int) ($inst->seat?->seat_number ?? 0),
+                fn (SchemeInstallment $inst): int => (int) ($inst->period?->period_number ?? 0),
+            ])
             ->values();
+    }
+
+    /**
+     * @param  Collection<int, SchemeInstallment>  $eligible
+     * @return array<int, Component>
+     */
+    protected function buildSettlementFormSchema(
+        Collection $eligible,
+        bool $showInstallmentSelect = true,
+        ?SchemeInstallment $fixedInstallment = null,
+    ): array {
+        /** @var SchemeInstallment|null $defaultInstallment */
+        $defaultInstallment = $fixedInstallment ?? $eligible->first();
+        [$defaultYear, $defaultMonth, $defaultDay] = NepaliDateService::explodeBs(NepaliDateService::currentBsDate());
+
+        $schema = [];
+
+        if ($showInstallmentSelect) {
+            $options = $eligible->mapWithKeys(function (SchemeInstallment $inst): array {
+                $schemeTitle = $inst->scheme?->title ?? 'Scheme';
+                $seatNum = $inst->seat?->seat_number ?? '?';
+                $roundNum = $inst->period?->period_number ?? '?';
+                $remaining = number_format($inst->remaining_due, 2);
+
+                return [$inst->id => "{$schemeTitle} — Seat #{$seatNum} — Round #{$roundNum} (Due: Rs. {$remaining})"];
+            })->all();
+
+            $schema[] = Select::make('scheme_installment_id')
+                ->label('Scheme / Seat / Round')
+                ->options($options)
+                ->default($defaultInstallment?->id)
+                ->required()
+                ->live()
+                ->afterStateUpdated(function (Set $set, $state) use ($eligible): void {
+                    $selected = $eligible->firstWhere('id', (int) $state);
+                    if ($selected) {
+                        $set('amount', $selected->remaining_due);
+                    }
+                });
+        }
+
+        $schema[] = Grid::make(3)
+            ->schema([
+                Select::make('bs_year')
+                    ->label('Nepali Year (BS)')
+                    ->options(NepaliDateService::getNepaliYears())
+                    ->default($defaultYear)
+                    ->required()
+                    ->live(),
+
+                Select::make('bs_month')
+                    ->label('Nepali Month')
+                    ->options(NepaliDateService::getNepaliMonths())
+                    ->default($defaultMonth)
+                    ->required()
+                    ->live(),
+
+                Select::make('bs_day')
+                    ->label('Nepali Day')
+                    ->options(fn (Get $get): array => NepaliDateService::getNepaliDays(
+                        (int) ($get('bs_month') ?: $defaultMonth),
+                        (int) ($get('bs_year') ?: $defaultYear),
+                    ))
+                    ->default($defaultDay)
+                    ->required()
+                    ->live()
+                    ->helperText(function (Get $get) use ($defaultYear, $defaultMonth, $defaultDay): string {
+                        $y = (int) ($get('bs_year') ?: $defaultYear);
+                        $m = (int) ($get('bs_month') ?: $defaultMonth);
+                        $d = min((int) ($get('bs_day') ?: $defaultDay), NepaliDateService::daysInMonth($m, $y));
+
+                        return '🗓️ '.NepaliDateService::formatBs(sprintf('%04d-%02d-%02d', $y, $m, $d));
+                    }),
+            ]);
+
+        $schema[] = TextInput::make('amount')
+            ->label('Settlement Amount (Rs.)')
+            ->numeric()
+            ->required()
+            ->minValue(1)
+            ->default($defaultInstallment?->remaining_due ?? 0);
+
+        $schema[] = Select::make('payment_method')
+            ->label('Payment Method')
+            ->options(InstallmentSettlementRequest::PAYMENT_METHODS)
+            ->default('Cash')
+            ->required();
+
+        $schema[] = TextInput::make('reference_id')
+            ->label('Transaction Reference / ID')
+            ->placeholder('e.g. eSewa Txn ID, Bank Ref')
+            ->maxLength(120);
+
+        $schema[] = Textarea::make('notes')
+            ->label('Notes')
+            ->rows(2)
+            ->maxLength(500);
+
+        $schema[] = FileUpload::make('proof_images')
+            ->label('Payment Proof Images (Optional)')
+            ->image()
+            ->multiple()
+            ->maxFiles(5)
+            ->disk('public')
+            ->visibility('public')
+            ->directory('settlement_proofs')
+            ->nullable();
+
+        return $schema;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function submitSettlementAction(?SchemeInstallment $installment, array $data): void
+    {
+        $user = Auth::user();
+
+        if (! $user || ! $installment) {
+            Notification::make()
+                ->danger()
+                ->title('Invalid Installment Selected')
+                ->send();
+
+            return;
+        }
+
+        $y = (int) $data['bs_year'];
+        $m = (int) $data['bs_month'];
+        $d = min((int) $data['bs_day'], NepaliDateService::daysInMonth($m, $y));
+        $bsDate = sprintf('%04d-%02d-%02d', $y, $m, $d);
+
+        try {
+            app(SavingsSchemeService::class)->submitInstallmentSettlementRequest(
+                installment: $installment,
+                user: $user,
+                amount: (float) $data['amount'],
+                paymentMethod: (string) $data['payment_method'],
+                paymentDateBs: $bsDate,
+                referenceId: $data['reference_id'] ?? null,
+                notes: $data['notes'] ?? null,
+                proofImages: $data['proof_images'] ?? null,
+            );
+
+            Notification::make()
+                ->success()
+                ->title('Settlement Application Submitted')
+                ->body("Your settlement request for Round #{$installment->period?->period_number} has been sent to the organizer for verification.")
+                ->send();
+        } catch (InvalidArgumentException $e) {
+            Notification::make()
+                ->danger()
+                ->title('Could Not Submit Request')
+                ->body($e->getMessage())
+                ->send();
+        }
     }
 }

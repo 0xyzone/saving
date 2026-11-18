@@ -147,10 +147,24 @@ class InstallmentSettlementRequestTest extends TestCase
         $this->assertFalse(PendingSettlementRequestsWidget::canView());
         $this->assertGreaterThanOrEqual(2, $member->notifications()->count());
 
-        // Member sees Approved badge on seat card and Nepali BS Paid On date in View Details modal
+        // Current round (Round #2 after Round #1 auto-completed): if Round #2 is paid while Round #3 is unpaid,
+        // card's Apply Settlement stays hidden because current Round #2 is Paid,
+        // while the widget header's Apply Settlement action is visible for paying other/future rounds.
+        $period2 = $scheme->periods()->where('period_number', 2)->firstOrFail();
+        $service->generatePeriodInstallments($scheme, $period2);
+        SchemeInstallment::query()
+            ->where('scheme_period_id', $period2->id)
+            ->where('scheme_seat_id', $seat2->id)
+            ->update(['status' => 'paid', 'paid_amount' => 1000]);
+
+        $period3 = $scheme->periods()->where('period_number', 3)->firstOrFail();
+        $service->generatePeriodInstallments($scheme, $period3);
+
         $this->actingAs($member);
         Livewire::test(MyOngoingSchemeSeats::class)
-            ->assertSee('Last Request: Approved (Rd #1)');
+            ->assertSee('Last Request: Approved (Rd #1)')
+            ->assertTableActionHidden('apply_settlement', $seat2)
+            ->assertSee('Apply Settlement');
 
         $modalHtml = view('filament.widgets.seat-details-modal', [
             'seat' => $seat2->fresh(['scheme.organizer', 'scheme.periods', 'installments.period', 'settlementRequests.period', 'settlementRequests.reviewer']),
