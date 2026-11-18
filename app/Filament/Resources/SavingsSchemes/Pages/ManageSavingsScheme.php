@@ -25,6 +25,7 @@ use Filament\Schemas\Components\Grid;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
+use InvalidArgumentException;
 
 class ManageSavingsScheme extends Page
 {
@@ -1325,5 +1326,75 @@ class ManageSavingsScheme extends Page
         return filled($user->username)
             ? "{$user->name} ({$user->username})"
             : $user->name;
+    }
+
+    public function approveSettlementRequest(int $requestId): void
+    {
+        $user = Auth::user();
+        if (! $user || (! SavingsSchemeResource::canShield('ManageInstallments') && ! $user->hasRole('super_admin') && (int) $this->record->organizer_id !== (int) $user->id)) {
+            Notification::make()->title('Unauthorized')->danger()->send();
+
+            return;
+        }
+
+        $request = $this->record->settlementRequests()->findOrFail($requestId);
+
+        try {
+            $result = app(SavingsSchemeService::class)->approveInstallmentSettlementRequest(
+                request: $request,
+                reviewer: $user,
+            );
+
+            $msg = 'Applied Rs. '.number_format($result['applied'], 2).' to the installment.';
+            if ($result['auto_completed_round']) {
+                $msg .= ' Round completed automatically!';
+            }
+
+            Notification::make()
+                ->success()
+                ->title('Settlement Approved')
+                ->body($msg)
+                ->send();
+
+            $this->refreshSchemeRecord();
+        } catch (InvalidArgumentException $e) {
+            Notification::make()
+                ->danger()
+                ->title('Approval Failed')
+                ->body($e->getMessage())
+                ->send();
+        }
+    }
+
+    public function rejectSettlementRequest(int $requestId): void
+    {
+        $user = Auth::user();
+        if (! $user || (! SavingsSchemeResource::canShield('ManageInstallments') && ! $user->hasRole('super_admin') && (int) $this->record->organizer_id !== (int) $user->id)) {
+            Notification::make()->title('Unauthorized')->danger()->send();
+
+            return;
+        }
+
+        $request = $this->record->settlementRequests()->findOrFail($requestId);
+
+        try {
+            app(SavingsSchemeService::class)->rejectInstallmentSettlementRequest(
+                request: $request,
+                reviewer: $user,
+            );
+
+            Notification::make()
+                ->warning()
+                ->title('Settlement Request Rejected')
+                ->send();
+
+            $this->refreshSchemeRecord();
+        } catch (InvalidArgumentException $e) {
+            Notification::make()
+                ->danger()
+                ->title('Rejection Failed')
+                ->body($e->getMessage())
+                ->send();
+        }
     }
 }

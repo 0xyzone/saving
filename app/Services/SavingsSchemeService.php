@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\InstallmentSettlementRequest;
 use App\Models\SavingsScheme;
 use App\Models\SchemeApplication;
 use App\Models\SchemeInstallment;
@@ -751,6 +752,143 @@ class SavingsSchemeService
             'khaja_kharcha_deducted' => $khaja,
             'net_payout_amount' => $netPayout,
             'payout_status' => $payoutStatus,
+        ]);
+    }
+
+    public function submitInstallmentSettlementRequest(
+        SchemeInstallment $installment,
+        User $user,
+        float $amount,
+        string $paymentMethod,
+        string $paymentDateBs,
+        ?string $referenceId = null,
+        ?string $notes = null,
+    ): InstallmentSettlementRequest {
+        $installment->loadMissing(['seat', 'period', 'scheme']);
+
+        if ((int) $installment->user_id !== (int) $user->id && (int) $installment->seat?->user_id !== (int) $user->id) {
+            throw new InvalidArgumentException('You can only apply for settlement on your own seat installment.');
+        }
+
+        if ($installment->remaining_due <= 0) {
+            throw new InvalidArgumentException('This installment has no remaining balance due.');
+        }
+
+        if ($amount <= 0) {
+            throw new InvalidArgumentException('Settlement amount must be greater than zero.');
+        }
+
+        $hasPending = InstallmentSettlementRequest::query()
+            ->where('scheme_installment_id', $installment->id)
+            ->where('status', InstallmentSettlementRequest::STATUS_PENDING)
+            ->exists();
+
+        if ($hasPending) {
+            throw new InvalidArgumentException('A pending settlement request already exists for this installment.');
+        }
+
+        $paymentDateAd = NepaliDateService::toAd($paymentDateBs) ?: now()->toDateString();
+
+        return InstallmentSettlementRequest::create([
+            'savings_scheme_id' => $installment->savings_scheme_id,
+            'scheme_period_id' => $installment->scheme_period_id,
+            'scheme_seat_id' => $installment->scheme_seat_id,
+            'scheme_installment_id' => $installment->id,
+            'user_id' => $user->id,
+            'amount' => round($amount, 2),
+            'payment_method' => $paymentMethod,
+            'payment_date' => $paymentDateAd,
+            'payment_date_bs' => $paymentDateBs,
+            'reference_id' => filled($referenceId) ? trim($referenceId) : null,
+            'notes' => filled($notes) ? trim($notes) : null,
+            'status' => InstallmentSettlementRequest::STATUS_PENDING,
+        ]);
+    }
+
+    /**
+     * @return array{applied: float, fully_settled_period: bool, auto_completed_round: bool}
+     */
+    public function approveInstallmentSettlementRequest(
+        InstallmentSettlementRequest $request,
+        User $reviewer,
+        ?string $reviewerNotes = null,
+    ): array {
+        return DB::transaction(function () use ($request, $reviewer, $reviewerNotes): array {
+            /** @var InstallmentSettlementRequest $lockedRequest */
+            $lockedRequest = InstallmentSettlementRequest::query()
+                ->with(['installment', 'period', 'scheme'])
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+
+            if ($lockedRequest->status !== InstallmentSettlementRequest::STATUS_PENDING) {
+                throw new InvalidArgumentException('Only pending settlement requests can be approved.');
+            }
+
+            $installment = $lockedRequest->installment;
+            $period = $lockedRequest->period;
+            $scheme = $lockedRequest->scheme;
+
+            $remainingDue = $installment->remaining_due;
+            $applied = min((float) $lockedRequest->amount, $remainingDue);
+            $newPaidAmount = round((float) $installment->paid_amount + $applied, 2);
+            $isSeatPaid = $newPaidAmount >= (float) $installment->total_due;
+
+            $combinedNotes = collect([
+                $lockedRequest->reference_id ? "Ref: {$lockedRequest->reference_id}" : null,
+                $lockedRequest->notes,
+                $reviewerNotes,
+            ])->filter()->implode(' | ');
+
+            $installment->update([
+                'paid_amount' => $newPaidAmount,
+                'status' => $isSeatPaid ? 'paid' : ($newPaidAmount > 0 ? 'partial' : $installment->status),
+                'payment_method' => $lockedRequest->payment_method,
+                'paid_at' => $lockedRequest->payment_date ?? now(),
+                'verified_by' => $reviewer->id,
+                'notes' => $combinedNotes !== '' ? $combinedNotes : $installment->notes,
+            ]);
+
+            $lockedRequest->update([
+                'status' => InstallmentSettlementRequest::STATUS_APPROVED,
+                'reviewed_by' => $reviewer->id,
+                'reviewed_at' => now(),
+                'reviewer_notes' => filled($reviewerNotes) ? trim($reviewerNotes) : null,
+            ]);
+
+            if ($applied > 0 && ! in_array($scheme->status, ['active', 'completed'], true)) {
+                $scheme->update(['status' => 'active']);
+            }
+
+            $candidateSeat = $this->resolveAutoWinnerSeat($scheme, $period);
+            $allSettled = $this->areAllRequiredInstallmentsSettled($period, $candidateSeat);
+
+            $autoCompleted = false;
+            if ($allSettled) {
+                $autoCompleted = $this->checkAndAutoCompletePeriod($scheme, $period);
+            }
+
+            return [
+                'applied' => $applied,
+                'fully_settled_period' => $allSettled,
+                'auto_completed_round' => $autoCompleted,
+            ];
+        });
+    }
+
+    public function rejectInstallmentSettlementRequest(
+        InstallmentSettlementRequest $request,
+        User $reviewer,
+        ?string $reviewerNotes = null,
+    ): void {
+        if ($request->status !== InstallmentSettlementRequest::STATUS_PENDING) {
+            throw new InvalidArgumentException('Only pending settlement requests can be rejected.');
+        }
+
+        $request->update([
+            'status' => InstallmentSettlementRequest::STATUS_REJECTED,
+            'reviewed_by' => $reviewer->id,
+            'reviewed_at' => now(),
+            'reviewer_notes' => filled($reviewerNotes) ? trim($reviewerNotes) : null,
         ]);
     }
 }

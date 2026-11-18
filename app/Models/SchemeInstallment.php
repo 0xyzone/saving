@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SchemeInstallment extends Model
 {
@@ -76,5 +77,10 @@ class SchemeInstallment extends Model
     public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function settlementRequests(): HasMany
+    {
+        return $this->hasMany(InstallmentSettlementRequest::class);
     }
 }

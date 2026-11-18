@@ -41,4 +41,9 @@ class SchemeSeat extends Model
     {
         return $this->hasMany(SchemeInstallment::class);
     }
+
+    public function settlementRequests(): HasMany
+    {
+        return $this->hasMany(InstallmentSettlementRequest::class);
+    }
 }

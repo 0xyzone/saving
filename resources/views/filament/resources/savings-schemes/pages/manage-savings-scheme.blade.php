@@ -53,6 +53,19 @@
                 class="px-3 py-1.5 text-sm rounded-lg transition">
                 Installment Collections
             </button>
+            @php
+                $pendingSettlementRequestsCount = $record->settlementRequests()->where('status', \App\Models\InstallmentSettlementRequest::STATUS_PENDING)->count();
+            @endphp
+            <button type="button" @click="activeTab = 'settlement_requests'"
+                :class="activeTab === 'settlement_requests' ? 'bg-primary-50 text-primary-600 dark:bg-primary-950/40 dark:text-primary-400 font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+                class="px-3 py-1.5 text-sm rounded-lg transition inline-flex items-center gap-1.5">
+                <span>Settlement Requests</span>
+                @if ($pendingSettlementRequestsCount > 0)
+                    <span class="px-1.5 py-0.5 text-[11px] font-bold rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                        {{ $pendingSettlementRequestsCount }}
+                    </span>
+                @endif
+            </button>
         </div>
 
         {{-- TAB 1: Periods & Winners --}}
@@ -512,6 +525,105 @@
                         No installments generated for this period yet.
                     </div>
                 @endforelse
+            </div>
+        </div>
+
+        {{-- TAB 4: Member Settlement Requests --}}
+        <div x-show="activeTab === 'settlement_requests'" class="space-y-3">
+            @php
+                $schemeSettlementRequests = $record->settlementRequests()
+                    ->with(['user', 'seat', 'period', 'reviewer'])
+                    ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+                    ->latest()
+                    ->get();
+                $canManageSettlementRequests = \App\Filament\Resources\SavingsSchemes\SavingsSchemeResource::canShield('ManageInstallments')
+                    || \Illuminate\Support\Facades\Auth::user()?->hasRole('super_admin')
+                    || (int) $record->organizer_id === (int) \Illuminate\Support\Facades\Auth::id();
+            @endphp
+
+            <div class="text-xs text-slate-500">
+                Verify and approve or reject member-submitted installment settlement applications.
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs uppercase text-slate-500 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3">Member &amp; Seat</th>
+                            <th class="px-4 py-3">Round</th>
+                            <th class="px-4 py-3">Payment Date (BS)</th>
+                            <th class="px-4 py-3">Amount</th>
+                            <th class="px-4 py-3">Method &amp; Ref</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                        @forelse ($schemeSettlementRequests as $req)
+                            <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/30">
+                                <td class="px-4 py-3">
+                                    <div class="font-semibold text-slate-900 dark:text-white">{{ $req->user?->name ?? 'Member' }}</div>
+                                    <div class="text-xs text-slate-500">Seat #{{ $req->seat?->seat_number ?? '?' }}</div>
+                                </td>
+                                <td class="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
+                                    Round #{{ $req->period?->period_number ?? '?' }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="font-medium text-slate-800 dark:text-slate-200">{{ $req->formatted_payment_date_bs }}</div>
+                                    <div class="text-xs text-slate-500">{{ $req->payment_date?->format('M d, Y') }} AD</div>
+                                </td>
+                                <td class="px-4 py-3 font-bold text-emerald-600 dark:text-emerald-400">
+                                    Rs. {{ number_format((float) $req->amount, 2) }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="font-medium text-slate-800 dark:text-slate-200">{{ $req->payment_method }}</div>
+                                    @if ($req->reference_id || $req->notes)
+                                        <div class="text-xs text-slate-500">
+                                            {{ collect([$req->reference_id ? "Ref: {$req->reference_id}" : null, $req->notes])->filter()->implode(' • ') }}
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3">
+                                    @if ($req->status === 'pending')
+                                        <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">Pending</span>
+                                    @elseif ($req->status === 'approved')
+                                        <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">Approved</span>
+                                    @else
+                                        <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400">Rejected</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    @if ($req->status === 'pending' && $canManageSettlementRequests)
+                                        <div class="inline-flex items-center gap-1.5">
+                                            <button type="button"
+                                                wire:click="approveSettlementRequest({{ $req->id }})"
+                                                wire:loading.attr="disabled"
+                                                class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition">
+                                                Approve
+                                            </button>
+                                            <button type="button"
+                                                wire:click="rejectSettlementRequest({{ $req->id }})"
+                                                wire:loading.attr="disabled"
+                                                class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition">
+                                                Reject
+                                            </button>
+                                        </div>
+                                    @elseif ($req->reviewer)
+                                        <span class="text-xs text-slate-500">By {{ $req->reviewer->name }}</span>
+                                    @else
+                                        <span class="text-xs text-slate-400">-</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">
+                                    No settlement requests submitted for this scheme yet.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

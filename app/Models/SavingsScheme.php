@@ -115,4 +115,9 @@ class SavingsScheme extends Model
     {
         return $this->hasMany(SchemePeriodReservation::class);
     }
+
+    public function settlementRequests(): HasMany
+    {
+        return $this->hasMany(InstallmentSettlementRequest::class);
+    }
 }
