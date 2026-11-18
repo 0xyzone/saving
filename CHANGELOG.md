@@ -5,6 +5,23 @@ All notable changes to the **Saving Portal** application will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-11-19
+
+### Added
+- **Potential Return Estimator & Portfolio Net Gain Simulator Widgets**:
+  - Added `PotentialReturnCalculator` with glassmorphism styling, 3D badge, motion animations, and Nepali BS round dates to project upcoming round net disbursement (and full-scheme net gain for single-seat holders).
+  - Added `PortfolioNetGainSimulator` side-by-side to simulate combined full-scheme net gains across multiple seats (including already-disbursed rounds and selectable upcoming rounds), with a frosted preview state for single-seat holders.
+- **Member Installment Settlement Applications & Organizer Verification**:
+  - Added `InstallmentSettlementRequest` workflow allowing members to apply for installment settlements with Nepali BS date, amount, payment method, reference ID, notes, and optional multi-image payment proof uploads (`settlement_proofs`).
+  - Scoped seat-card **Apply Settlement** strictly to the current running round installment (showing **Pending Verification** and card/modal application status badges) and added a top-level **Apply Settlement** header action for any unpaid/future round.
+  - Added `PendingSettlementRequestsWidget` on the organizer dashboard and a **Settlement Requests** tab in `ManageSavingsScheme` with Approve/Reject actions and an in-page proof image popup viewer.
+- **Database Notifications**:
+  - Enabled Filament database notifications with 30-second live polling and wired persistent notifications for settlement applications, installment payments, seat assignments, round recipient declarations, payout settlements, and round reservations.
+
+### Changed & Fixed
+- **Nepali BS "Paid On" Dates**: Displayed Nepali BS dates alongside AD dates in the Seat Details ledger and `MyInstallmentHistory` widget.
+- **Global UI & Modal Polish**: Standardized all slide-over modals to `7xl` width, fixed the mobile modal scroll background gap, added right padding to dropdown chevron icons globally, and auto-focused the password field while skipping the username field in tab order on the two-step login screen.
+
 ## [1.8.0] - 2026-11-17
 
 ### Added
