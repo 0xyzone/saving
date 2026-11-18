@@ -1073,4 +1073,32 @@
     .dark .sp-port-locked-text {
         color: #94a3b8;
     }
+
+    /* Global Slide-Over Modal Width (7xl) & Mobile Modal Scroll/Background Fix */
+    .fi-modal.fi-modal-slide-over > .fi-modal-window-ctn > .fi-modal-window {
+        max-width: 80rem !important;
+    }
+
+    @media (max-width: 767px) {
+        .fi-modal:not(.fi-modal-slide-over):not(.fi-width-screen) > .fi-modal-window-ctn {
+            padding: 0.75rem !important;
+            overflow-y: auto !important;
+            align-items: flex-start !important;
+        }
+
+        .fi-modal:not(.fi-modal-slide-over):not(.fi-width-screen) > .fi-modal-window-ctn > .fi-modal-window {
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: calc(100dvh - 1.5rem) !important;
+            overflow-y: auto !important;
+            margin-block: auto !important;
+            border-radius: 1rem !important;
+        }
+
+        .fi-modal.fi-modal-slide-over > .fi-modal-window-ctn > .fi-modal-window {
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            overflow-y: auto !important;
+        }
+    }
 </style>

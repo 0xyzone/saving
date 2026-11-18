@@ -361,7 +361,7 @@ class MyOngoingSchemeSeats extends TableWidget
                     ->icon('heroicon-m-eye')
                     ->color('primary')
                     ->slideOver()
-                    ->modalWidth('3xl')
+                    ->modalWidth('7xl')
                     ->modalHeading(fn (SchemeSeat $record): string => "{$record->scheme->title} — Seat #{$record->seat_number}")
                     ->modalContent(fn (SchemeSeat $record) => view('filament.widgets.seat-details-modal', [
                         'seat' => $record->loadMissing(['scheme.organizer', 'scheme.periods', 'installments.period', 'settlementRequests.period', 'settlementRequests.reviewer']),
