@@ -40,14 +40,19 @@ class Login extends BaseLogin
             ->prefixIcon(Heroicon::User)
             ->required()
             ->autocomplete()
-            ->autofocus()
+            ->autofocus(fn (): bool => ! $this->isNumberVerified)
             ->disabled(fn (): bool => $this->isNumberVerified)
             ->dehydrated()
+            ->extraInputAttributes(
+                fn (): array => $this->isNumberVerified ? ['tabindex' => '-1'] : [],
+                merge: true,
+            )
             ->suffixAction(
                 fn (): ?Action => $this->isNumberVerified
                     ? Action::make('changeNumber')
                         ->icon(Heroicon::PencilSquare)
                         ->tooltip('Change username or contact number')
+                        ->extraAttributes(['tabindex' => '-1'])
                         ->action(function (): void {
                             $this->isNumberVerified = false;
                             $this->data['password'] = null;
@@ -65,6 +70,7 @@ class Login extends BaseLogin
             ->autofocus(fn (): bool => $this->isNumberVerified)
             ->extraInputAttributes([
                 'wire:keydown.enter.prevent' => 'authenticate',
+                'x-init' => '$nextTick(() => setTimeout(() => $el.focus(), 20))',
             ], merge: true);
     }
 

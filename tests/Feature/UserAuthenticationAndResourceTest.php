@@ -65,7 +65,9 @@ class UserAuthenticationAndResourceTest extends TestCase
         $component->set('data.primary_contact_number', '9801122334')
             ->call('verifyContactNumber')
             ->assertHasNoErrors()
-            ->assertSet('isNumberVerified', true);
+            ->assertSet('isNumberVerified', true)
+            ->assertSeeHtml('tabindex="-1"')
+            ->assertSeeHtml('$el.focus()');
 
         // 4. Submit invalid password -> triggers password error notification & validation message
         $component->set('data.password', 'wrong-pass')
