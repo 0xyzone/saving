@@ -403,10 +403,10 @@
     }
 
     /* ==========================================================================
-       Potential Return Estimator Widget (Glassmorphism + 3D + Thin Numerals)
+       Potential Return & Portfolio Simulator Widgets (Glassmorphism + 3D + Thin Numerals)
        ========================================================================== */
     .sp-calc-widget {
-        grid-column: 1 / -1;
+        min-width: 0;
     }
 
     .sp-calc-card {
@@ -932,5 +932,79 @@
             animation: none !important;
             transition: none !important;
         }
+    }
+
+    /* Portfolio Net Gain Simulator Extensions */
+    .sp-calc-3d-face-emerald {
+        background: linear-gradient(145deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.88) 100%);
+        color: #ffffff;
+        box-shadow:
+            0 10px 20px -6px rgba(5, 150, 105, 0.5),
+            inset 0 1.5px 1px rgba(255, 255, 255, 0.55),
+            inset 0 -3px 6px rgba(6, 78, 59, 0.35);
+    }
+
+    .sp-calc-3d-glow-emerald {
+        background: rgba(16, 185, 129, 0.4);
+    }
+
+    .sp-port-seat-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        max-height: 11.5rem;
+        overflow-y: auto;
+        padding-right: 0.15rem;
+    }
+
+    .sp-port-seat-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.45rem 0.65rem;
+        border-radius: 0.75rem;
+        background: rgba(255, 255, 255, 0.38);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .dark .sp-port-seat-row {
+        background: rgba(15, 23, 42, 0.44);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .sp-port-seat-tag {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #0f172a;
+        white-space: nowrap;
+    }
+
+    .dark .sp-port-seat-tag {
+        color: #f8fafc;
+    }
+
+    .sp-port-seat-status {
+        font-size: 0.74rem;
+        font-weight: 500;
+        color: #64748b;
+    }
+
+    .dark .sp-port-seat-status {
+        color: #94a3b8;
+    }
+
+    .sp-port-seat-select {
+        padding-top: 0.32rem !important;
+        padding-bottom: 0.32rem !important;
+        font-size: 0.76rem !important;
+        border-radius: 0.6rem !important;
+    }
+
+    .sp-port-seat-gain {
+        font-size: 0.78rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
     }
 </style>

@@ -7,6 +7,7 @@ use App\Filament\Widgets\MemberSchemesOverview;
 use App\Filament\Widgets\MyInstallmentHistory;
 use App\Filament\Widgets\MyOngoingSchemeSeats;
 use App\Filament\Widgets\MyReservationsAndWinnings;
+use App\Filament\Widgets\PortfolioNetGainSimulator;
 use App\Filament\Widgets\PotentialReturnCalculator;
 use App\Filament\Widgets\UsersOverview;
 use App\Models\SavingsScheme;
@@ -351,5 +352,91 @@ class MemberDashboardWidgetsTest extends TestCase
             ->assertSuccessful()
             ->assertSee('All Seats Disbursed')
             ->assertSee('0.00');
+    }
+
+    public function test_portfolio_net_gain_simulator_combines_won_and_simulated_seats(): void
+    {
+        $organizer = User::create([
+            'name' => 'Organizer Portfolio',
+            'email' => 'org-port@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $member = User::create([
+            'name' => 'Multi Seat Portfolio',
+            'email' => 'member-port@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $outsider = User::create([
+            'name' => 'Outsider Portfolio',
+            'email' => 'outsider-port@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $scheme = SavingsScheme::create([
+            'title' => 'Portfolio Test Scheme',
+            'organizer_id' => $organizer->id,
+            'total_seats' => 4,
+            'total_periods' => 4,
+            'installment_amount' => 1000,
+            'interest_amount' => 100,
+            'khaja_kharcha' => 200,
+            'frequency' => 'monthly',
+            'start_date' => '2026-01-01',
+            'status' => 'active',
+        ]);
+
+        $service = app(SavingsSchemeService::class);
+        $service->initializeScheme($scheme);
+
+        $seat1 = $scheme->seats()->where('seat_number', 1)->firstOrFail();
+        $seat1->update(['user_id' => $organizer->id, 'won_at_period' => 1]);
+
+        $seat2 = $scheme->seats()->where('seat_number', 2)->firstOrFail();
+        $seat2->update(['user_id' => $member->id, 'won_at_period' => 2]);
+
+        $seat3 = $scheme->seats()->where('seat_number', 3)->firstOrFail();
+        $seat3->update(['user_id' => $member->id, 'won_at_period' => null]);
+
+        $seat4 = $scheme->seats()->where('seat_number', 4)->firstOrFail();
+        $seat4->update(['user_id' => $organizer->id, 'won_at_period' => null]);
+
+        $scheme->periods()->where('period_number', 1)->firstOrFail()->update([
+            'status' => 'completed',
+            'winning_seat_id' => $seat1->id,
+            'is_validated' => true,
+        ]);
+        $scheme->periods()->where('period_number', 2)->firstOrFail()->update([
+            'status' => 'completed',
+            'winning_seat_id' => $seat2->id,
+            'is_validated' => false,
+        ]);
+        $scheme->periods()->where('period_number', 3)->firstOrFail()->update([
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($outsider);
+        $this->assertFalse(PortfolioNetGainSimulator::canView());
+
+        $this->actingAs($member);
+        $this->assertTrue(PortfolioNetGainSimulator::canView());
+
+        // Seat #2 (won in Round #2): Payout = 4000 - 200 = 3800; Outlay = 4000 + 2*100 = 4200; Gain = -400.00
+        // Seat #3 (simulated in Round #4): Payout = 4200 - 200 = 4000; Outlay = 4000 + 0 = 4000; Gain = +0.00
+        // Combined: Payout = 7,800.00, Outlay = 8,200.00, Net Gain = -400.00
+        Livewire::test(PortfolioNetGainSimulator::class)
+            ->assertSuccessful()
+            ->assertSee('Portfolio Net Gain Simulator')
+            ->assertSee('2 Seats')
+            ->assertSee('1 Disbursed')
+            ->assertSee('1 Simulated')
+            ->assertSee('Seat #2')
+            ->assertSee('Disbursed in Round #2')
+            ->assertSee('Seat #3')
+            ->assertSee('Round #4')
+            ->assertSee('7,800.00')
+            ->assertSee('8,200.00')
+            ->assertSee('400.00');
     }
 }

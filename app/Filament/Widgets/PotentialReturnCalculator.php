@@ -15,7 +15,10 @@ class PotentialReturnCalculator extends Widget
 {
     protected static ?int $sort = 2;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = [
+        'default' => 'full',
+        'lg' => 1,
+    ];
 
     protected string $view = 'filament.widgets.potential-return-calculator';
 
