@@ -328,6 +328,7 @@ class MemberDashboardWidgetsTest extends TestCase
         //   User's own dues in Round #4: Seat 2 (1000 + 100) + Seat 3 (1000) = 2100
         //   Maslanda Deposit = 200
         //   Net Disbursement = 4200 - 2100 - 200 = 1900.00
+        //   Full-scheme seat outlay (4 rounds, 0 future interest after Round #4) = 4000.00
         Livewire::test(PotentialReturnCalculator::class)
             ->assertSuccessful()
             ->assertSee('Potential Return Estimator')
@@ -340,7 +341,8 @@ class MemberDashboardWidgetsTest extends TestCase
             ->assertSee('1,900.00')
             ->assertSee('4,200.00')
             ->assertSee('2,100.00')
-            ->assertSee('200.00');
+            ->assertSee('200.00')
+            ->assertSee('4,000.00 full-scheme seat outlay (4 rounds)');
 
         // When all user seats are disbursed, eligible_seats_left === 0 and Net Disbursement is 0.00
         $seat3->update(['won_at_period' => 3]);

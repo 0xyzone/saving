@@ -122,7 +122,9 @@ class PotentialReturnCalculator extends Widget
      *     user_own_dues: float,
      *     maslanda_deposit: float,
      *     net_disbursement: float,
-     *     projected_cost_through_round: float,
+     *     total_periods: int,
+     *     seat_future_interest: float,
+     *     seat_lifetime_outlay: float,
      *     net_gain: float,
      *     paid_so_far: float,
      * }
@@ -140,7 +142,9 @@ class PotentialReturnCalculator extends Widget
                 'user_own_dues' => 0.0,
                 'maslanda_deposit' => 0.0,
                 'net_disbursement' => 0.0,
-                'projected_cost_through_round' => 0.0,
+                'total_periods' => 0,
+                'seat_future_interest' => 0.0,
+                'seat_lifetime_outlay' => 0.0,
                 'net_gain' => 0.0,
                 'paid_so_far' => 0.0,
             ];
@@ -176,18 +180,18 @@ class PotentialReturnCalculator extends Widget
             ? max(0.0, $projectedGrossPool - $userOwnDues - $maslanda)
             : 0.0;
 
-        // Projected total contributions by user from Round #1 up to Round #(R-1) (since Round #R dues are deducted from netDisbursement)
-        $projectedCostThroughRound = 0.0;
-        for ($p = 1; $p < $roundNumber; $p++) {
-            $priorUserInterestCount = $userSeats
-                ->whereNotNull('won_at_period')
-                ->where('won_at_period', '<', $p)
-                ->where('seat_number', '!=', 1)
-                ->count();
-            $projectedCostThroughRound += ($totalUserSeats * $installment) + ($priorUserInterestCount * $interest);
-        }
-
-        $netGain = $canReceive ? ($netDisbursement - $projectedCostThroughRound) : 0.0;
+        // Full-scheme net gain for that 1 winning seat:
+        // Round R payout (gross pool minus Maslanda) minus that seat's installments across all rounds (1..N)
+        // and post-disbursement interest for remaining future rounds (R+1..N) if it is a non-organizer seat.
+        $totalPeriods = max($roundNumber, (int) ($scheme->total_periods ?: $totalSeats));
+        $eligibleNonOrgSeat = $userSeats
+            ->whereNull('won_at_period')
+            ->firstWhere('seat_number', '!=', 1);
+        $remainingRoundsAfterR = max(0, $totalPeriods - $roundNumber);
+        $seatFutureInterest = ($eligibleNonOrgSeat !== null) ? ($remainingRoundsAfterR * $interest) : 0.0;
+        $seatLifetimeOutlay = ($totalPeriods * $installment) + $seatFutureInterest;
+        $seatRoundNetPayout = max(0.0, $projectedGrossPool - $maslanda);
+        $netGain = $canReceive ? ($seatRoundNetPayout - $seatLifetimeOutlay) : 0.0;
 
         $paidSoFar = (float) SchemeInstallment::query()
             ->where('savings_scheme_id', $scheme->id)
@@ -205,7 +209,9 @@ class PotentialReturnCalculator extends Widget
             'user_own_dues' => $userOwnDues,
             'maslanda_deposit' => $maslanda,
             'net_disbursement' => $netDisbursement,
-            'projected_cost_through_round' => $projectedCostThroughRound,
+            'total_periods' => $totalPeriods,
+            'seat_future_interest' => $seatFutureInterest,
+            'seat_lifetime_outlay' => $seatLifetimeOutlay,
             'net_gain' => $netGain,
             'paid_so_far' => $paidSoFar,
         ];
