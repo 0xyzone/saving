@@ -45,14 +45,16 @@
         line-height: 1.5 !important;
     }
 
-    .fi-input-wrp select {
+    .fi-input-wrp select,
+    select.fi-select-input {
         height: 2.75rem !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
         padding-inline-start: 0.875rem !important;
-        padding-inline-end: 2.25rem !important;
+        padding-inline-end: 2.625rem !important;
         line-height: 2.75rem !important;
         align-self: stretch !important;
+        background-position: right 0.875rem center !important;
     }
 
     .fi-select-input .fi-select-input-btn {
@@ -60,7 +62,14 @@
         padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
         padding-inline-start: 0.875rem !important;
-        padding-inline-end: 2.25rem !important;
+        padding-inline-end: 2.625rem !important;
+        background-position: right 0.875rem center !important;
+    }
+
+    [dir="rtl"] .fi-input-wrp select,
+    [dir="rtl"] select.fi-select-input,
+    [dir="rtl"] .fi-select-input .fi-select-input-btn {
+        background-position: left 0.875rem center !important;
     }
 
     .fi-input-wrp .fi-input-wrp-prefix {
@@ -91,6 +100,16 @@
     .sp-custom-modal input:not([type="checkbox"]):not([type="radio"]),
     .sp-custom-modal select {
         min-height: 2.75rem !important;
+    }
+
+    .sp-custom-modal select {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        padding-inline-end: 2.625rem !important;
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
+        background-position: right 0.875rem center !important;
+        background-repeat: no-repeat !important;
+        background-size: 1.35em 1.35em !important;
     }
 
     html.dark .sp-custom-modal input:not([type="checkbox"]):not([type="radio"]),
@@ -640,12 +659,18 @@
 
     .sp-calc-select {
         width: 100%;
+        appearance: none;
+        -webkit-appearance: none;
         border-radius: 0.75rem;
-        padding: 0.5rem 0.75rem;
+        padding: 0.5rem 2.625rem 0.5rem 0.875rem;
         font-size: 0.84rem;
         font-weight: 600;
         color: #0f172a;
-        background: rgba(255, 255, 255, 0.62);
+        background-color: rgba(255, 255, 255, 0.62);
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 0.875rem center;
+        background-repeat: no-repeat;
+        background-size: 1.35em 1.35em;
         border: 1px solid rgba(148, 163, 184, 0.35);
         backdrop-filter: blur(10px);
         transition: border-color 220ms ease, box-shadow 220ms ease;
@@ -653,7 +678,8 @@
 
     .dark .sp-calc-select {
         color: #f8fafc;
-        background: rgba(15, 23, 42, 0.62);
+        background-color: rgba(15, 23, 42, 0.62);
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
         border: 1px solid rgba(255, 255, 255, 0.14);
     }
 
