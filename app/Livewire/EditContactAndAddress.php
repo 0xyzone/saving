@@ -63,7 +63,7 @@ class EditContactAndAddress extends BaseProfileForm
                             ->placeholder('e.g. johndoe')
                             ->alphaDash()
                             ->disabled()
-                            ->default(fn () => Auth()->user()?->username)
+                            ->default(fn () => $this->user?->username)
                             ->prefix('@')
                             ->nullable()
                             ->unique($this->user::class, 'username', ignorable: $this->user)
