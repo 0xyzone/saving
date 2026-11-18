@@ -54,6 +54,11 @@ class InstallmentSettlementRequestTest extends TestCase
         $service->assignSeat($scheme, 1, $organizer);
         $seat2 = $service->assignSeat($scheme, 2, $member);
 
+        // Seat assignment sends a database notification to the member
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_id' => $member->id,
+        ]);
+
         $period1 = $scheme->periods()->where('period_number', 1)->firstOrFail();
         $period1->update(['status' => 'in_progress']);
         $service->generatePeriodInstallments($scheme, $period1);
@@ -95,6 +100,7 @@ class InstallmentSettlementRequestTest extends TestCase
         $this->assertSame('eSewa', $request->payment_method);
         $this->assertSame('ESW-998877', $request->reference_id);
         $this->assertEquals(1000.00, (float) $request->amount);
+        $this->assertSame(2, $organizer->notifications()->count());
 
         // Once pending, apply_settlement hides, Pending Verification shows, and card badge shows Submitted for Review
         $seat2->refresh();
@@ -126,6 +132,7 @@ class InstallmentSettlementRequestTest extends TestCase
         $this->assertSame('eSewa', $installment->payment_method);
         $this->assertSame($organizer->id, $installment->verified_by);
         $this->assertFalse(PendingSettlementRequestsWidget::canView());
+        $this->assertGreaterThanOrEqual(2, $member->notifications()->count());
 
         // Member sees Approved badge on seat card and Nepali BS Paid On date in View Details modal
         $this->actingAs($member);
@@ -173,6 +180,11 @@ class InstallmentSettlementRequestTest extends TestCase
         $service->initializeScheme($scheme);
         $service->assignSeat($scheme, 1, $organizer);
         $seat2 = $service->assignSeat($scheme, 2, $member);
+
+        // Seat assignment sends a database notification to the member
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_id' => $member->id,
+        ]);
 
         $period1 = $scheme->periods()->where('period_number', 1)->firstOrFail();
         $period1->update(['status' => 'in_progress']);

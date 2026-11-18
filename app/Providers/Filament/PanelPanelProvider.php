@@ -35,6 +35,8 @@ class PanelPanelProvider extends PanelProvider
             ->path('/')
             ->viteTheme('resources/css/filament/panel/theme.css')
             ->login(Login::class)
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->brandName('Saving Portal')
             ->brandLogo(fn () => view('filament.brand'))
             ->favicon(fn (): string => static::isLocalHost() ? asset('images/favicon-local.svg') : asset('images/favicon-prod.svg'))

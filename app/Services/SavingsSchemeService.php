@@ -12,6 +12,8 @@ use App\Models\SchemeSeat;
 use App\Models\User;
 use Carbon\Carbon;
 use DateTimeInterface;
+use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -101,6 +103,15 @@ class SavingsSchemeService
 
             // Ensure periods are auto-expanded to match the seats count (1 seat = 1 round/period)
             $this->ensurePeriodsMatchSeats($scheme);
+
+            $this->notifyUser(
+                recipient: $user,
+                title: 'Seat Assigned',
+                body: "You have been assigned Seat #{$seat->seat_number} in {$scheme->title}.",
+                icon: 'heroicon-o-ticket',
+                color: 'success',
+                actorId: Auth::id(),
+            );
 
             return $seat;
         });
@@ -396,6 +407,15 @@ class SavingsSchemeService
 
             // If all installments in this period were already settled before declaring winner, auto-clear payout settlement
             $this->checkAndAutoCompletePeriod($scheme, $period);
+
+            $this->notifyUser(
+                recipient: $winningSeat->user,
+                title: "Round #{$period->period_number} Recipient Declared",
+                body: "Your Seat #{$winningSeat->seat_number} has been declared the recipient for Round #{$period->period_number} in {$scheme->title}.",
+                icon: 'heroicon-o-trophy',
+                color: 'success',
+                actorId: Auth::id(),
+            );
         });
     }
 
@@ -422,6 +442,18 @@ class SavingsSchemeService
             'payout_notes' => $notes ?: $period->payout_notes,
             'paid_at' => $paidTimestamp,
         ]);
+
+        if ($amount > 0) {
+            $period->loadMissing(['winnerUser', 'scheme']);
+            $this->notifyUser(
+                recipient: $period->winnerUser,
+                title: 'Disbursement Payout Recorded',
+                body: 'Rs. '.number_format($amount, 2)." payout recorded via {$method} for Round #{$period->period_number} in {$period->scheme?->title}.",
+                icon: 'heroicon-o-banknotes',
+                color: 'success',
+                actorId: Auth::id(),
+            );
+        }
     }
 
     /**
@@ -436,7 +468,7 @@ class SavingsSchemeService
         User $requestedBy,
         bool $directApprove = false
     ): SchemePeriodReservation {
-        return SchemePeriodReservation::create([
+        $reservation = SchemePeriodReservation::create([
             'savings_scheme_id' => $scheme->id,
             'scheme_period_id' => $period->id,
             'scheme_seat_id' => $seat?->id,
@@ -447,6 +479,29 @@ class SavingsSchemeService
             'reviewed_by' => $directApprove ? $requestedBy->id : null,
             'reviewed_at' => $directApprove ? now() : null,
         ]);
+
+        if ($directApprove) {
+            $this->notifyUser(
+                recipient: $user,
+                title: "Round #{$period->period_number} Reserved",
+                body: "Round #{$period->period_number} in {$scheme->title} has been reserved for your seat.",
+                icon: 'heroicon-o-calendar-days',
+                color: 'success',
+                actorId: $requestedBy->id,
+            );
+        } else {
+            $scheme->loadMissing('organizer');
+            $this->notifyUser(
+                recipient: $scheme->organizer,
+                title: 'New Round Reservation Request',
+                body: "{$user->name} requested Round #{$period->period_number} in {$scheme->title}.",
+                icon: 'heroicon-o-calendar-days',
+                color: 'warning',
+                actorId: $requestedBy->id,
+            );
+        }
+
+        return $reservation;
     }
 
     /**
@@ -459,6 +514,16 @@ class SavingsSchemeService
             'reviewed_by' => $reviewer->id,
             'reviewed_at' => now(),
         ]);
+
+        $reservation->loadMissing(['user', 'period', 'scheme']);
+        $this->notifyUser(
+            recipient: $reservation->user,
+            title: 'Round Reservation Approved',
+            body: "Your reservation for Round #{$reservation->period?->period_number} in {$reservation->scheme?->title} has been approved.",
+            icon: 'heroicon-o-check-circle',
+            color: 'success',
+            actorId: $reviewer->id,
+        );
     }
 
     /**
@@ -472,6 +537,16 @@ class SavingsSchemeService
             'reviewed_by' => $reviewer->id,
             'reviewed_at' => now(),
         ]);
+
+        $reservation->loadMissing(['user', 'period', 'scheme']);
+        $this->notifyUser(
+            recipient: $reservation->user,
+            title: 'Round Reservation Rejected',
+            body: "Your reservation for Round #{$reservation->period?->period_number} in {$reservation->scheme?->title} was rejected.",
+            icon: 'heroicon-o-x-circle',
+            color: 'danger',
+            actorId: $reviewer->id,
+        );
     }
 
     /**
@@ -538,6 +613,17 @@ class SavingsSchemeService
             $autoCompleted = false;
             if ($allSettled) {
                 $autoCompleted = $this->checkAndAutoCompletePeriod($scheme, $period);
+            }
+
+            if ($totalApplied > 0) {
+                $this->notifyUser(
+                    recipient: User::find($userId),
+                    title: 'Installment Payment Recorded',
+                    body: 'Rs. '.number_format($totalApplied, 2)." recorded via {$method} for Round #{$period->period_number} in {$scheme->title}.",
+                    icon: 'heroicon-o-banknotes',
+                    color: 'success',
+                    actorId: $verifiedBy ?? Auth::id(),
+                );
             }
 
             return [
@@ -789,7 +875,7 @@ class SavingsSchemeService
 
         $paymentDateAd = NepaliDateService::toAd($paymentDateBs) ?: now()->toDateString();
 
-        return InstallmentSettlementRequest::create([
+        $settlementRequest = InstallmentSettlementRequest::create([
             'savings_scheme_id' => $installment->savings_scheme_id,
             'scheme_period_id' => $installment->scheme_period_id,
             'scheme_seat_id' => $installment->scheme_seat_id,
@@ -803,6 +889,18 @@ class SavingsSchemeService
             'notes' => filled($notes) ? trim($notes) : null,
             'status' => InstallmentSettlementRequest::STATUS_PENDING,
         ]);
+
+        $installment->scheme?->loadMissing('organizer');
+        $this->notifyUser(
+            recipient: $installment->scheme?->organizer,
+            title: 'New Settlement Application',
+            body: "{$user->name} submitted Rs. ".number_format(round($amount, 2), 2)." ({$paymentMethod}) for Seat #{$installment->seat?->seat_number}, Round #{$installment->period?->period_number} in {$installment->scheme?->title}.",
+            icon: 'heroicon-o-document-check',
+            color: 'warning',
+            actorId: $user->id,
+        );
+
+        return $settlementRequest;
     }
 
     /**
@@ -816,7 +914,7 @@ class SavingsSchemeService
         return DB::transaction(function () use ($request, $reviewer, $reviewerNotes): array {
             /** @var InstallmentSettlementRequest $lockedRequest */
             $lockedRequest = InstallmentSettlementRequest::query()
-                ->with(['installment', 'period', 'scheme'])
+                ->with(['installment', 'period', 'scheme', 'seat', 'user'])
                 ->lockForUpdate()
                 ->findOrFail($request->id);
 
@@ -867,6 +965,15 @@ class SavingsSchemeService
                 $autoCompleted = $this->checkAndAutoCompletePeriod($scheme, $period);
             }
 
+            $this->notifyUser(
+                recipient: $lockedRequest->user,
+                title: 'Settlement Application Approved',
+                body: 'Your Rs. '.number_format($applied, 2)." settlement for Seat #{$lockedRequest->seat?->seat_number}, Round #{$period->period_number} in {$scheme->title} has been approved.",
+                icon: 'heroicon-o-check-circle',
+                color: 'success',
+                actorId: $reviewer->id,
+            );
+
             return [
                 'applied' => $applied,
                 'fully_settled_period' => $allSettled,
@@ -890,5 +997,39 @@ class SavingsSchemeService
             'reviewed_at' => now(),
             'reviewer_notes' => filled($reviewerNotes) ? trim($reviewerNotes) : null,
         ]);
+
+        $request->loadMissing(['user', 'seat', 'period', 'scheme']);
+        $this->notifyUser(
+            recipient: $request->user,
+            title: 'Settlement Application Rejected',
+            body: "Your settlement request for Seat #{$request->seat?->seat_number}, Round #{$request->period?->period_number} in {$request->scheme?->title} was rejected.",
+            icon: 'heroicon-o-x-circle',
+            color: 'danger',
+            actorId: $reviewer->id,
+        );
+    }
+
+    protected function notifyUser(
+        ?User $recipient,
+        string $title,
+        string $body,
+        string $icon = 'heroicon-o-bell',
+        string $color = 'info',
+        ?int $actorId = null,
+    ): void {
+        if (! $recipient) {
+            return;
+        }
+
+        if ($actorId !== null && (int) $recipient->id === $actorId) {
+            return;
+        }
+
+        Notification::make()
+            ->title($title)
+            ->body($body)
+            ->icon($icon)
+            ->color($color)
+            ->sendToDatabase($recipient);
     }
 }
