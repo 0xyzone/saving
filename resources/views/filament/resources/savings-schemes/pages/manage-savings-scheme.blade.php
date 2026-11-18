@@ -582,6 +582,80 @@
                                             {{ collect([$req->reference_id ? "Ref: {$req->reference_id}" : null, $req->notes])->filter()->implode(' • ') }}
                                         </div>
                                     @endif
+                                    @if (! empty($req->proof_image_urls))
+                                        <div
+                                            x-data="{ proofOpen: false, activeIndex: 0, urls: @js($req->proof_image_urls) }"
+                                            class="mt-1.5"
+                                        >
+                                            <button
+                                                type="button"
+                                                @click="proofOpen = true; activeIndex = 0"
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2 py-1 text-xs font-semibold text-sky-600 transition hover:bg-sky-500/20 dark:text-sky-400"
+                                            >
+                                                <img src="{{ $req->proof_image_urls[0] }}" alt="Proof" class="h-5 w-5 rounded object-cover" />
+                                                <span>View Proof ({{ count($req->proof_image_urls) }})</span>
+                                            </button>
+
+                                            <template x-teleport="body">
+                                                <div
+                                                    x-show="proofOpen"
+                                                    x-cloak
+                                                    @click="proofOpen = false"
+                                                    @keydown.escape.window="proofOpen = false"
+                                                    class="fixed inset-0 flex items-center justify-center p-4"
+                                                    style="z-index: 99999; background-color: rgba(2, 6, 23, 0.8); backdrop-filter: blur(8px);"
+                                                >
+                                                    <div
+                                                        @click.stop
+                                                        class="w-full max-w-2xl space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+                                                        style="max-height: 90vh; overflow-y: auto;"
+                                                    >
+                                                        <div class="flex items-center justify-between">
+                                                            <div>
+                                                                <h4 class="text-sm font-bold text-slate-900 dark:text-white">
+                                                                    Payment Proof &mdash; {{ $req->user?->name ?? 'Member' }}
+                                                                </h4>
+                                                                <p class="text-xs text-slate-500">
+                                                                    Seat #{{ $req->seat?->seat_number ?? '?' }} &middot; Round #{{ $req->period?->period_number ?? '?' }} &middot; Rs. {{ number_format((float) $req->amount, 2) }}
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                @click="proofOpen = false"
+                                                                class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+
+                                                        <div class="flex items-center justify-center rounded-xl border border-slate-100 bg-slate-950/90 p-3 dark:border-slate-800">
+                                                            <img
+                                                                :src="urls[activeIndex]"
+                                                                alt="Settlement Proof"
+                                                                style="max-height: 62vh; max-width: 100%; width: auto; height: auto; object-fit: contain;"
+                                                                class="rounded-lg"
+                                                            />
+                                                        </div>
+
+                                                        <template x-if="urls.length > 1">
+                                                            <div class="flex flex-wrap items-center justify-center gap-2">
+                                                                <template x-for="(url, idx) in urls" :key="idx">
+                                                                    <button
+                                                                        type="button"
+                                                                        @click="activeIndex = idx"
+                                                                        :class="activeIndex === idx ? 'ring-2 ring-amber-500 opacity-100' : 'opacity-60 hover:opacity-100'"
+                                                                        class="overflow-hidden rounded-lg border border-slate-200 bg-white p-0.5 transition dark:border-slate-700 dark:bg-slate-800"
+                                                                    >
+                                                                        <img :src="url" alt="Proof thumbnail" class="h-14 w-14 rounded object-cover" />
+                                                                    </button>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     @if ($req->status === 'pending')

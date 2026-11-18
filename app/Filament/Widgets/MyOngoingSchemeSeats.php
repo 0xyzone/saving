@@ -12,6 +12,7 @@ use App\Models\SchemeSeat;
 use App\Services\NepaliDateService;
 use App\Services\SavingsSchemeService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -302,6 +303,16 @@ class MyOngoingSchemeSeats extends TableWidget
                                 ->label('Notes')
                                 ->rows(2)
                                 ->maxLength(500),
+
+                            FileUpload::make('proof_images')
+                                ->label('Payment Proof Images (Optional)')
+                                ->image()
+                                ->multiple()
+                                ->maxFiles(5)
+                                ->disk('public')
+                                ->visibility('public')
+                                ->directory('settlement_proofs')
+                                ->nullable(),
                         ];
                     })
                     ->action(function (SchemeSeat $record, array $data): void {
@@ -332,6 +343,7 @@ class MyOngoingSchemeSeats extends TableWidget
                                 paymentDateBs: $bsDate,
                                 referenceId: $data['reference_id'] ?? null,
                                 notes: $data['notes'] ?? null,
+                                proofImages: $data['proof_images'] ?? null,
                             );
 
                             Notification::make()

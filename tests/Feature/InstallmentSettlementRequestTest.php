@@ -12,6 +12,8 @@ use App\Models\User;
 use App\Services\NepaliDateService;
 use App\Services\SavingsSchemeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -75,7 +77,11 @@ class InstallmentSettlementRequestTest extends TestCase
             ->where('scheme_seat_id', $seat2->id)
             ->firstOrFail();
 
-        // Member submits settlement request from MyOngoingSchemeSeats widget
+        // Member submits settlement request from MyOngoingSchemeSeats widget with optional proof images
+        Storage::fake('public');
+        $proof1 = UploadedFile::fake()->image('receipt1.jpg');
+        $proof2 = UploadedFile::fake()->image('receipt2.jpg');
+
         $this->actingAs($member);
 
         Livewire::test(MyOngoingSchemeSeats::class)
@@ -90,10 +96,13 @@ class InstallmentSettlementRequestTest extends TestCase
                 'payment_method' => 'eSewa',
                 'reference_id' => 'ESW-998877',
                 'notes' => 'Paid via eSewa wallet',
+                'proof_images' => [$proof1, $proof2],
             ])
             ->assertNotified('Settlement Application Submitted');
 
         $request = InstallmentSettlementRequest::query()->firstOrFail();
+        $this->assertCount(2, $request->proof_images);
+        $this->assertCount(2, $request->proof_image_urls);
         $this->assertSame('pending', $request->status);
         $this->assertSame('2083-08-03', $request->payment_date_bs);
         $this->assertSame(NepaliDateService::toAd('2083-08-03'), $request->payment_date->format('Y-m-d'));
@@ -109,14 +118,18 @@ class InstallmentSettlementRequestTest extends TestCase
             ->assertSee('Pending Verification')
             ->assertSee('Submitted for Review: Rd #1 (Rs. 1,000.00)');
 
-        // Organizer sees pending request in PendingSettlementRequestsWidget and approves it
+        // Organizer sees pending request and View Proof popup in PendingSettlementRequestsWidget & ManageSavingsScheme
         $this->actingAs($organizer);
         $this->assertTrue(PendingSettlementRequestsWidget::canView());
+
+        Livewire::test(ManageSavingsScheme::class, ['record' => $scheme->id])
+            ->assertSee('View Proof (2)');
 
         Livewire::test(PendingSettlementRequestsWidget::class)
             ->assertSuccessful()
             ->assertSee('Member Applicant')
             ->assertSee('1,000.00')
+            ->assertTableActionVisible('view_proof', $request)
             ->callTableAction('approve', $request, [
                 'reviewer_notes' => 'Verified on eSewa',
             ])

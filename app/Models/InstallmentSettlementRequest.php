@@ -40,6 +40,7 @@ class InstallmentSettlementRequest extends Model
         'payment_date_bs',
         'reference_id',
         'notes',
+        'proof_images',
         'status',
         'reviewed_by',
         'reviewed_at',
@@ -55,7 +56,20 @@ class InstallmentSettlementRequest extends Model
             'amount' => 'decimal:2',
             'payment_date' => 'date',
             'reviewed_at' => 'datetime',
+            'proof_images' => 'array',
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getProofImageUrlsAttribute(): array
+    {
+        return collect($this->proof_images ?? [])
+            ->filter()
+            ->map(fn (string $path): string => asset('storage/'.$path))
+            ->values()
+            ->all();
     }
 
     public function getFormattedPaymentDateBsAttribute(): string

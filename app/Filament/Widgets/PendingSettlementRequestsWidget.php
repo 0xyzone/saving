@@ -89,6 +89,19 @@ class PendingSettlementRequestsWidget extends TableWidget
                     ])->filter()->implode(' • ') ?: null),
             ])
             ->recordActions([
+                Action::make('view_proof')
+                    ->label(fn (InstallmentSettlementRequest $record): string => 'Proof ('.count($record->proof_images ?? []).')')
+                    ->icon('heroicon-m-photo')
+                    ->color('info')
+                    ->visible(fn (InstallmentSettlementRequest $record): bool => filled($record->proof_images))
+                    ->modalHeading(fn (InstallmentSettlementRequest $record): string => "Payment Proof — {$record->user?->name} (Round #{$record->period?->period_number})")
+                    ->modalWidth('3xl')
+                    ->modalContent(fn (InstallmentSettlementRequest $record) => view('filament.widgets.settlement-proof-modal', [
+                        'request' => $record->loadMissing(['user', 'seat', 'period']),
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close'),
+
                 Action::make('approve')
                     ->label('Approve')
                     ->icon('heroicon-m-check-circle')

@@ -849,6 +849,7 @@ class SavingsSchemeService
         string $paymentDateBs,
         ?string $referenceId = null,
         ?string $notes = null,
+        ?array $proofImages = null,
     ): InstallmentSettlementRequest {
         $installment->loadMissing(['seat', 'period', 'scheme']);
 
@@ -887,6 +888,7 @@ class SavingsSchemeService
             'payment_date_bs' => $paymentDateBs,
             'reference_id' => filled($referenceId) ? trim($referenceId) : null,
             'notes' => filled($notes) ? trim($notes) : null,
+            'proof_images' => filled($proofImages) ? array_values($proofImages) : null,
             'status' => InstallmentSettlementRequest::STATUS_PENDING,
         ]);
 
