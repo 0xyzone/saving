@@ -25,18 +25,27 @@
         border-radius: 0.625rem !important;
     }
 
-    .fi-input-wrp input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
-        padding-top: 0.55rem !important;
-        padding-bottom: 0.55rem !important;
-        padding-inline: 0.875rem !important;
-        line-height: 1.45 !important;
+    .fi-input-wrp:not(:has(textarea)) > .fi-input-wrp-content-ctn:has(> input.fi-input) {
+        display: flex;
+        align-items: center;
     }
 
-    .fi-input-wrp:has(.fi-input-wrp-prefix) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+    .fi-input-wrp input.fi-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+    .fi-input-wrp input.fi-fo-date-time-picker-display-text-input {
+        min-height: 2.75rem !important;
+        padding-top: 0.625rem !important;
+        padding-bottom: 0.625rem !important;
+        padding-inline: 0.875rem !important;
+        line-height: 1.5rem !important;
+    }
+
+    .fi-input-wrp:has(.fi-input-wrp-prefix-has-content.fi-inline) input.fi-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+    .fi-input-wrp:has(.fi-input-wrp-prefix-has-content.fi-inline) input.fi-fo-date-time-picker-display-text-input {
         padding-inline-start: 0.5rem !important;
     }
 
-    .fi-input-wrp:has(.fi-input-wrp-suffix) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+    .fi-input-wrp:has(.fi-input-wrp-suffix.fi-inline) input.fi-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+    .fi-input-wrp:has(.fi-input-wrp-suffix.fi-inline) input.fi-fo-date-time-picker-display-text-input {
         padding-inline-end: 0.5rem !important;
     }
 
@@ -59,6 +68,7 @@
 
     .fi-select-input .fi-select-input-btn {
         min-height: 2.75rem !important;
+        align-items: center !important;
         padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
         padding-inline-start: 0.875rem !important;
