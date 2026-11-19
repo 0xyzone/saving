@@ -9,6 +9,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -34,10 +35,12 @@ class EditContactAndAddress extends BaseProfileForm
             'primary_contact_number' => $this->user->primary_contact_number,
             'secondary_contact_number' => $this->user->secondary_contact_number,
             'home_address' => $this->user->home_address,
-            'paymentOptions' => $this->user->paymentOptions()
+            'paymentOptions' => $this
+                ->user
+                ->paymentOptions()
                 ->orderBy('id')
                 ->get()
-                ->map(fn (UserPaymentOption $option): array => [
+                ->map(fn(UserPaymentOption $option): array => [
                     'id' => $option->id,
                     'type' => $option->type,
                     'provider_name' => $option->provider_name,
@@ -58,30 +61,34 @@ class EditContactAndAddress extends BaseProfileForm
                     ->aside()
                     ->description('Update your username, contact numbers, and residential address.')
                     ->schema([
+                        TextEntry::make('username')
+                            ->label('Username')
+                            ->default(fn() => '@' . $this->user?->username)
+                            ->visible(fn() => $this->user?->username)
+                            ->extraAttributes([
+                                'class' => 'cursor-not-allowed text-2xl text-amber-400',
+                            ]),
                         TextInput::make('username')
                             ->label('Username')
                             ->placeholder('e.g. johndoe')
                             ->alphaDash()
-                            ->disabled()
-                            ->default(fn () => $this->user?->username)
+                            ->default(fn() => $this->user?->username)
                             ->prefix('@')
                             ->nullable()
                             ->unique($this->user::class, 'username', ignorable: $this->user)
-                            ->maxLength(255),
-
+                            ->maxLength(255)
+                            ->visible(fn() => !$this->user?->username),
                         TextInput::make('primary_contact_number')
                             ->label('Primary Contact Number')
                             ->tel()
                             ->nullable()
                             ->unique($this->user::class, 'primary_contact_number', ignorable: $this->user)
                             ->maxLength(50),
-
                         TextInput::make('secondary_contact_number')
                             ->label('Secondary Contact Number')
                             ->tel()
                             ->nullable()
                             ->maxLength(50),
-
                         Textarea::make('home_address')
                             ->label('Home Address')
                             ->rows(3)
@@ -89,7 +96,6 @@ class EditContactAndAddress extends BaseProfileForm
                             ->columnSpanFull(),
                     ])
                     ->columns(['default' => 1, 'sm' => 3]),
-
                 Section::make('Payment Methods')
                     ->aside()
                     ->description('Manage your bank accounts, digital wallets, and QR codes for receiving disbursements.')
@@ -105,18 +111,15 @@ class EditContactAndAddress extends BaseProfileForm
                                     ])
                                     ->required()
                                     ->native(false),
-
                                 TextInput::make('provider_name')
                                     ->label('Bank / Wallet Provider Name')
                                     ->placeholder('e.g. Nabil Bank, eSewa, Khalti')
                                     ->nullable()
                                     ->maxLength(100),
-
                                 TextInput::make('account_number')
                                     ->label('Account / Wallet Number')
                                     ->required()
                                     ->maxLength(100),
-
                                 FileUpload::make('qr_code_image')
                                     ->label('QR Code')
                                     ->image()
@@ -125,26 +128,24 @@ class EditContactAndAddress extends BaseProfileForm
                                     ->directory('payment_qrs')
                                     ->imageEditor()
                                     ->nullable(),
-
                                 Toggle::make('is_preferred')
                                     ->label('Preferred')
                                     ->default(false)
                                     ->live()
                                     ->afterStateUpdated(function ($state, callable $get, callable $set, $component): void {
-                                        if (! $state) {
+                                        if (!$state) {
                                             return;
                                         }
 
                                         $items = $get('../../paymentOptions') ?? [];
                                         $currentPath = $component->getStatePath();
                                         foreach ($items as $key => $item) {
-                                            if (! str_contains($currentPath, ".{$key}.")) {
+                                            if (!str_contains($currentPath, ".{$key}.")) {
                                                 $items[$key]['is_preferred'] = false;
                                             }
                                         }
                                         $set('../../paymentOptions', $items);
                                     }),
-
                                 Toggle::make('is_active')
                                     ->label('Active')
                                     ->default(true),
@@ -153,8 +154,8 @@ class EditContactAndAddress extends BaseProfileForm
                             ->defaultItems(0)
                             ->addActionLabel('Add Payment Method')
                             ->collapsible()
-                            ->itemLabel(fn (array $state): ?string => filled($state['provider_name'] ?? null)
-                                ? $state['provider_name'].' - '.($state['account_number'] ?? '')
+                            ->itemLabel(fn(array $state): ?string => filled($state['provider_name'] ?? null)
+                                ? $state['provider_name'] . ' - ' . ($state['account_number'] ?? '')
                                 : ($state['account_number'] ?? 'New Payment Method')),
                     ]),
             ])
@@ -185,7 +186,7 @@ class EditContactAndAddress extends BaseProfileForm
                 'is_active' => (bool) ($optionData['is_active'] ?? true),
             ];
 
-            if (! empty($optionData['id'])) {
+            if (!empty($optionData['id'])) {
                 $existing = $this->user->paymentOptions()->find($optionData['id']);
                 if ($existing) {
                     $existing->update($payload);
